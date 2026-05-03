@@ -85,7 +85,46 @@ Returns definitions from main Romanian dictionary sources (DEX '09, MDA2, DLRLC)
 ```
 
 ---
+---
 
+### Inflection
+
+```
+GET /inflect/{word}
+```
+
+Returns basic inflection information extracted from dictionary headers —
+plural forms for nouns, comparative/feminine forms for adjectives, first
+person present for verbs.
+
+**Phase 1 limitation:** covers the most common inflected forms only. Full
+paradigm tables (all cases, numbers, genders) are planned for Phase 2.
+
+**Example:** `GET /inflect/casă`
+
+```json
+{
+  "word": "casă",
+  "word_type": "substantiv feminin",
+  "forms": "case",
+  "source": "DEX '09",
+  "note": "Basic inflection extracted from dictionary header. Full paradigm tables (all cases) available in Phase 2."
+}
+```
+
+**Example:** `GET /inflect/frumos`
+
+```json
+{
+  "word": "frumos",
+  "word_type": "adjectiv",
+  "forms": "frumoși, -oase",
+  "source": "DEX '09",
+  "note": "Basic inflection extracted from dictionary header. Full paradigm tables (all cases) available in Phase 2."
+}
+```
+
+---
 ## Running locally
 
 **Requirements:** Python 3.13+
@@ -110,7 +149,7 @@ Interactive docs available at `http://127.0.0.1:8001/docs`.
 pytest tests/ -v
 ```
 
-14 tests, all passing.
+20 tests, all passing.
 
 ---
 
@@ -137,7 +176,7 @@ lexicro/
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1 | Conjugation + lexical lookup · Free tier | 🔨 In progress |
+| 1 | Conjugation + lexical lookup + basic inflection · Free tier | 🔨 In progress |
 | 2 | Romanian BERT fine-tuning · `/analyze` morphological endpoint | Planned |
 | 3 | Grammar checker · CEFR scorer · Paid tiers | Planned |
 | 4 | Enterprise · On-premise packaging | Planned |
