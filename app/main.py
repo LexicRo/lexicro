@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routers import conjugate
+from app.routers import conjugate, lookup
 
 app = FastAPI(
     title="LexicRo API",
@@ -17,7 +17,7 @@ app = FastAPI(
 )
 
 app.include_router(conjugate.router)
-
+app.include_router(lookup.router)
 
 @app.get("/health", tags=["System"])
 async def health_check():
