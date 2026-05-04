@@ -1,6 +1,9 @@
 import json
 from verbecc import CompleteConjugator
 
+import logging
+logging.getLogger('verbecc').setLevel(logging.ERROR)
+
 _conjugator = CompleteConjugator(lang='ro')
 
 
