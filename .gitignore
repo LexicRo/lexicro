@@ -1,0 +1,16 @@
+# Environment variables
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment
+.venv/
+
+# PyCharm
+.idea/
+
+# Database
+*.db

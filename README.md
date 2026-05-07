@@ -123,7 +123,50 @@ paradigm tables (all cases, numbers, genders) are planned for Phase 2.
   "note": "Basic inflection extracted from dictionary header. Full paradigm tables (all cases) available in Phase 2."
 }
 ```
+---
 
+### Difficulty / Word validation
+
+```
+POST /difficulty
+```
+
+**Phase 1:** validates whether a word exists in standard Romanian dictionaries
+(DEX '09, MDA2, DLRLC). Full CEFR level scoring is planned for Phase 2.
+
+**Request:**
+
+```json
+{"text": "casă"}
+```
+
+**Response — valid word:**
+
+```json
+{
+  "text": "casă",
+  "valid_romanian_word": true,
+  "cefr_level": null,
+  "confidence": "none",
+  "method": "dictionary_validation",
+  "explanation": "Word found in standard Romanian dictionaries (DEX '09, MDA2, or DLRLC).",
+  "note": "Phase 1: word validation only..."
+}
+```
+
+**Response — word not found:**
+
+```json
+{
+  "text": "xyzabc",
+  "valid_romanian_word": false,
+  "cefr_level": null,
+  "confidence": "none",
+  "method": "dictionary_validation",
+  "explanation": "Word not found in main dictionary sources. May be specialised, archaic, misspelled, or not a Romanian word.",
+  "note": "Phase 1: word validation only..."
+}
+```
 ---
 ## Running locally
 
@@ -149,7 +192,7 @@ Interactive docs available at `http://127.0.0.1:8001/docs`.
 pytest tests/ -v
 ```
 
-20 tests, all passing.
+26 tests, all passing.
 
 ---
 
@@ -176,7 +219,8 @@ lexicro/
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1 | Conjugation + lexical lookup + basic inflection · Free tier | 🔨 In progress |
+|       |       |        |
+| 1 | Conjugation + lexical lookup + inflection + word validation · Free tier | 🔨 In progress |
 | 2 | Romanian BERT fine-tuning · `/analyze` morphological endpoint | Planned |
 | 3 | Grammar checker · CEFR scorer · Paid tiers | Planned |
 | 4 | Enterprise · On-premise packaging | Planned |
