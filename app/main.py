@@ -1,5 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
+from fastapi.security import APIKeyHeader
 from app.routers import conjugate, lookup, inflect, difficulty
+from app.middleware.rate_limit import check_rate_limit
+
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 app = FastAPI(
     title="LexicRo API",
@@ -16,10 +20,13 @@ app = FastAPI(
     },
 )
 
-app.include_router(conjugate.router)
-app.include_router(lookup.router)
-app.include_router(inflect.router)
-app.include_router(difficulty.router)
+dependencies = [Depends(api_key_header), Depends(check_rate_limit)]
+
+app.include_router(conjugate.router, dependencies=dependencies)
+app.include_router(lookup.router, dependencies=dependencies)
+app.include_router(inflect.router, dependencies=dependencies)
+app.include_router(difficulty.router, dependencies=dependencies)
+
 
 @app.get("/health", tags=["System"])
 async def health_check():
