@@ -229,9 +229,9 @@ lexicro/
 
 ## Live API
 
-Base URL: `http://api.lexicro.com:8001`
+Base URL: `https://api.lexicro.com`
 
-Interactive docs: `http://api.lexicro.com:8001/docs`
+Interactive docs: `https://api.lexicro.com/docs`
 
 ---
 
