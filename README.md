@@ -227,6 +227,14 @@ lexicro/
 
 ---
 
+## Live API
+
+Base URL: `http://api.lexicro.com:8001`
+
+Interactive docs: `http://api.lexicro.com:8001/docs`
+
+---
+
 ## Licence
 
 Code: [MIT](LICENSE)  
