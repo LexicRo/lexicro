@@ -17,7 +17,7 @@ services:
   api:
     build: .
     ports:
-      - "8001:8001"
+      - "127.0.0.1:8001:8001"    # was "8001:8001"
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:${POSTGRES_PASSWORD}@db:5432/lexicro
     depends_on:
