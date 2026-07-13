@@ -1,8 +1,11 @@
 from fastapi import FastAPI, Depends
 from fastapi.security import APIKeyHeader
-from app.routers import conjugate, lookup, inflect, difficulty
+from fastapi.responses import JSONResponse
 from app.middleware.rate_limit import check_rate_limit
 from app.routers import conjugate, lookup, inflect, difficulty, analyze
+
+class UTF8JSONResponse(JSONResponse):
+    media_type = "application/json; charset=utf-8"
 
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
@@ -10,6 +13,7 @@ app = FastAPI(
     title="LexicRo API",
     description="Romanian Language Intelligence Infrastructure — morphological analysis, conjugation, and lexical lookup.",
     version="0.1.0",
+    default_response_class=UTF8JSONResponse,
     contact={
         "name": "LexicRo",
         "url": "https://lexicro.com",
