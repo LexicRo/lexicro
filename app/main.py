@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends
 from fastapi.security import APIKeyHeader
 from app.routers import conjugate, lookup, inflect, difficulty
 from app.middleware.rate_limit import check_rate_limit
+from app.routers import conjugate, lookup, inflect, difficulty, analyze
 
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
@@ -26,7 +27,7 @@ app.include_router(conjugate.router, dependencies=dependencies)
 app.include_router(lookup.router, dependencies=dependencies)
 app.include_router(inflect.router, dependencies=dependencies)
 app.include_router(difficulty.router, dependencies=dependencies)
-
+app.include_router(analyze.router, dependencies=dependencies)
 
 @app.get("/health", tags=["System"])
 async def health_check():
