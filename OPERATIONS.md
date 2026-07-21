@@ -72,11 +72,10 @@ du -sh /var/lib/docker/containers/*/*-json.log | sort -h | tail
 ## 3. Database backups
 
 ```bash
-sudo install -m 755 scripts/backup.sh /usr/local/bin/lexicro-backup
 sudo mkdir -p /var/backups/lexicro
 
-# run it once by hand first -- never trust a backup script you have not seen work
-sudo /usr/local/bin/lexicro-backup
+# run once by hand -- catches wrong paths or service names immediately
+sudo bash /opt/lexicro/scripts/backup.sh
 ls -lh /var/backups/lexicro/
 ```
 
@@ -87,7 +86,7 @@ sudo crontab -e
 ```
 
 ```cron
-17 3 * * * /usr/local/bin/lexicro-backup >> /var/log/lexicro-backup.log 2>&1
+17 3 * * * /bin/bash /opt/lexicro/scripts/backup.sh >> /var/log/lexicro-backup.log 2>&1
 ```
 
 An odd minute, deliberately: everything on a default Linux box runs at exactly
@@ -136,7 +135,7 @@ sudo crontab -e
 ```
 
 ```cron
-17 3 * * * HEALTHCHECK_URL=https://hc-ping.com/your-uuid /usr/local/bin/lexicro-backup >> /var/log/lexicro-backup.log 2>&1
+17 3 * * * HEALTHCHECK_URL=https://hc-ping.com/your-uuid /bin/bash /opt/lexicro/scripts/backup.sh >> /var/log/lexicro-backup.log 2>&1
 ```
 
 The script pings on success. If backups stop — cron broken, disk full, host
@@ -184,7 +183,7 @@ docker image prune -f
 
 ```bash
 docker-compose ps                                    # both Up, db healthy
-sudo /usr/local/bin/lexicro-backup                   # backup works
+sudo bash /opt/lexicro/scripts/backup.sh                   # backup works
 sudo crontab -l                                      # cron installed
 df -h / && free -m                                   # disk and memory headroom
 curl -s -o /dev/null -w "%{http_code}\n" https://api.lexicro.com/health
@@ -197,6 +196,24 @@ curl.exe -s -o NUL -w "%{http_code}`n" https://api.lexicro.com/guide
 ```
 
 ---
+## Recreating the db container — known compose bug
+
+`docker-compose` 1.29.2 fails with `KeyError: 'ContainerConfig'` when recreating
+a container against a newer Docker Engine image format. It appears whenever a
+change touches the `db` service.
+
+Workaround — take a dump first, then force removal rather than in-place recreate:
+
+    docker-compose exec -T db pg_dump -U postgres lexicro | gzip > /root/pre-change.sql.gz
+    docker-compose rm -sf db api
+    docker-compose up -d
+
+Data lives in the named volume `postgres_data`, which `rm` does not touch.
+
+Root cause: compose v1 (Python) is end-of-life. The v2 plugin — `docker compose`,
+with a space — does not have this bug and is a drop-in for this compose file.
+Worth migrating when there is time to test it properly.
+
 
 ## Deliberately not doing before leave
 
