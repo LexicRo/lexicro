@@ -13,6 +13,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   api:
     build: .
@@ -28,6 +29,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   postgres_data:
