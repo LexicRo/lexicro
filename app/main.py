@@ -16,8 +16,8 @@ lexical lookup.
 ## Authentication
 
 Pass your key in the `X-API-Key` header. Without one you get **10 requests/day**
-per IP — enough to try the API, not enough to build on. Keys are issued on
-request: **contact@lexicro.com**
+per IP — enough to try the API, not enough to build on. Keys are issued on request — [request one here](https://tally.so/r/GxBBbz)
+or email **contact@lexicro.com**.
 
 | tier | requests/day |
 |---|---|
