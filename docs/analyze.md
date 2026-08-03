@@ -210,4 +210,4 @@ Worth knowing before you build on it:
 
 Built on openly licensed resources — the MULTEXT-East Romanian lexicon and the
 UD Romanian RRT treebank, both CC BY-SA 4.0, and Romanian BERT. Full citations
-in [ATTRIBUTION.md](../ATTRIBUTION.md).
+in [ATTRIBUTION.md](https://api.lexicro.com/attribution).
