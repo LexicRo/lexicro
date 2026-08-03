@@ -17,8 +17,9 @@ lexical lookup.
 ## Authentication
 
 Pass your key in the `X-API-Key` header. Without one you get **10 requests/day**
-per IP - enough to try the API, not enough to build on. Keys are issued on request - [request one here](https://tally.so/r/GxBBbz)
-or email **contact@lexicro.com**.
+per IP - enough to try the API, not enough to build on. Keys are issued on
+request - [request one here](https://tally.so/r/GxBBbz) or email
+**contact@lexicro.com**.
 
 | tier | requests/day |
 |---|---|
@@ -29,13 +30,12 @@ or email **contact@lexicro.com**.
 
 Returns lemma, part of speech and morphological features for every token **in
 context**. A dictionary can tell you *era* is either the imperfect of **a fi**
-or the definite singular of **eră**; it cannot tell you which one you are
+("to be") or a noun meaning "epoch"; it cannot tell you which one you are
 looking at. This endpoint can.
 
 Accuracy on the UD Romanian RRT test split: **98.14%** UPOS, **95.50%** lemma.
 
-Docs: [Full documentation](https://api.lexicro.com/guide) | 
-Attribution: [Attribution](https://api.lexicro.com/attribution)
+[Full documentation](https://api.lexicro.com/guide) | [Attribution](https://api.lexicro.com/attribution)
 """
 
 app = FastAPI(
