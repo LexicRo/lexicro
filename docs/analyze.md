@@ -69,9 +69,9 @@ Keys are issued by hand at the moment, so a real person reads every request.
 | anonymous (per IP) | 10 |
 | free (with key) | 1,000 |
 
-Exceeding the limit returns **429** with a message naming your key's prefix (the
-first 12 characters), so you can quote it in support requests without sending
-the key itself.
+Exceeding the limit returns **429**. For keyed requests the message names your
+key's prefix (the first 12 characters), so you can quote it in support requests
+without sending the key itself; anonymous requests are identified by IP.
 
 ---
 
@@ -115,7 +115,7 @@ values come from mechanisms with quite different reliability:
 
 | value | meaning | lemma accuracy |
 |---|---|---|
-| `lexicon` | Exact dictionary lookup. The word is in a 352,000-form lexicon and its lemma is a fact, not a prediction. | 96.3% |
+| `lexicon` | Exact dictionary lookup. The word is in a 352,004-form lexicon and its lemma is a fact, not a prediction. | 96.3% |
 | `suffix` | Not in the lexicon; resolved by morphological suffix rules derived from that lexicon. | — |
 | `model` | Not in the lexicon; predicted by the neural model. Neologisms, proper nouns, foreign words, typos. | 93.3% (combined with `suffix`) |
 
@@ -136,6 +136,10 @@ processing unusual vocabulary and want to flag uncertain results, `source !=
 The same word form is also the noun *eră* ("epoch"). No lexicon can choose
 between them; the choice depends on the sentence. This is the whole reason the
 endpoint exists rather than a dictionary lookup.
+
+Forms like this are not rare: **15,822 of the lexicon's 352,004 forms (4.49%)
+are lemma-ambiguous** — the correct lemma genuinely depends on the reading,
+which is exactly what the model resolves before the dictionary is consulted.
 
 Romanian clitics are handled too: `s-au` is split into `s-` and `au`, and each
 is analysed separately — matching the convention used by Romanian treebanks.
@@ -195,10 +199,10 @@ Worth knowing before you build on it:
 
 | status | meaning |
 |---|---|
-| 401 | Missing, malformed, revoked or inactive API key. |
+| 401 | Malformed, revoked, or inactive API key. A *missing* key is not an error — you fall back to the anonymous tier. |
 | 413 | Text exceeds 20,000 characters. |
 | 422 | Malformed request body. |
-| 429 | Daily rate limit exceeded. |
+| 429 | Daily rate limit exceeded — the anonymous per-IP allowance, or your key's daily limit. |
 
 ---
 
