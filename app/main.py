@@ -3,6 +3,7 @@ from fastapi.security import APIKeyHeader
 from fastapi.responses import JSONResponse
 from app.middleware.rate_limit import check_rate_limit
 from app.routers import conjugate, lookup, inflect, difficulty, analyze, docs
+from app import __version__
 
 class UTF8JSONResponse(JSONResponse):
     media_type = "application/json; charset=utf-8"
@@ -33,22 +34,14 @@ looking at. This endpoint can.
 
 Accuracy on the UD Romanian RRT test split: **98.14%** UPOS, **95.50%** lemma.
 
-📖 [Full documentation](https://lexicro.com/docs/analyze) ·
-📄 [Attribution](https://lexicro.com/attribution)
+📖 [Full documentation](https://api.lexicro.com/guide) ·
+📄 [Attribution](https://api.lexicro.com/attribution)
 """
 
 app = FastAPI(
     title="LexicRo",
-    version="0.4.0",
+    version=__version__,
     description=DESCRIPTION,
-    contact={"name": "LexicRo", "email": "contact@lexicro.com"},
-    default_response_class=UTF8JSONResponse,
-)
-
-app = FastAPI(
-    title="LexicRo API",
-    description="Romanian Language Intelligence Infrastructure — morphological analysis, conjugation, and lexical lookup.",
-    version="0.1.0",
     default_response_class=UTF8JSONResponse,
     contact={
         "name": "LexicRo",
@@ -73,4 +66,4 @@ app.include_router(docs.router)          # public, no dependencies
 @app.get("/health", tags=["System"])
 async def health_check():
     """Returns API health status."""
-    return {"status": "ok", "version": "0.1.0"}
+    return {"status": "ok", "version": __version__}
