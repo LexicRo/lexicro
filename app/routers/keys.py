@@ -35,7 +35,7 @@ from app.database import AsyncSessionLocal
 from app.keys import generate_key, hash_key
 from app.email import send_verification_email
 
-router = APIRouter(tags=["Keys"])
+router = APIRouter(tags=["Keys"], include_in_schema=False)
 
 TALLY_WEBHOOK_SECRET = os.environ.get("TALLY_WEBHOOK_SECRET", "")
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "https://api.lexicro.com")
@@ -190,8 +190,9 @@ async def verify_key(token: str = ""):
                          "<a href='https://tally.so/r/GxBBbz'>request a new one</a>.</p>", 410)
         if row.expires_at < datetime.now(timezone.utc):
             return _page("Link expired",
-                         "<p>This link has expired. Please "
-                         "<a href='https://tally.so/r/GxBBbz'>request a new key</a>.</p>", 410)
+                         "<p>This link has expired. "
+                         "<a href='/keys/resend'>Get a fresh verification link</a> "
+                         "sent to the same address.</p>", 410)
 
         # mint the real key now
         newkey = generate_key()
