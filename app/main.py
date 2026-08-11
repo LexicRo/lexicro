@@ -3,6 +3,7 @@ from fastapi.security import APIKeyHeader
 from fastapi.responses import JSONResponse
 from app.middleware.rate_limit import check_rate_limit
 from app.routers import conjugate, lookup, inflect, difficulty, analyze, docs
+from app.routers.keys import router as keys_router   # match your actual path/name
 from app import __version__
 
 class UTF8JSONResponse(JSONResponse):
@@ -62,6 +63,7 @@ app.include_router(inflect.router, dependencies=dependencies)
 app.include_router(difficulty.router, dependencies=dependencies)
 app.include_router(analyze.router, dependencies=dependencies)
 app.include_router(docs.router)          # public, no dependencies
+app.include_router(keys_router)
 
 @app.get("/health", tags=["System"])
 async def health_check():
