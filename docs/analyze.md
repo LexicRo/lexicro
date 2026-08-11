@@ -56,11 +56,11 @@ Keys look like `lxr_` followed by 43 URL-safe characters. **They are shown once,
 at issue time, and are not recoverable** — store yours in a password manager. If
 you lose it, we revoke and reissue.
 
-To request a key, [fill in this short form](https://tally.so/r/GxBBbz) — it takes
-about a minute, and tells me enough about your use case to be useful. If you'd
-rather just send an email, **contact@lexicro.com** works too.
+To get a key, [fill in this short form](https://tally.so/r/GxBBbz) — it takes
+about a minute. You'll get a confirmation email; click the link in it and your
+key is generated instantly and shown once on screen.
 
-Keys are issued by hand at the moment, so a real person reads every request.
+Didn't get the email? You can [re-send it](https://api.lexicro.com/keys/resend).
 
 ### Rate limits
 
