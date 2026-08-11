@@ -21,6 +21,17 @@ request are resolved directly from this lexicon.
 > Erjavec, Tomaž et al. *MULTEXT-East free lexicons 4.0*, Slovenian language
 > resource repository CLARIN.SI, 2010. http://hdl.handle.net/11356/1041
 
+The MULTEXT-East morpho-lexical resources are described in:
+
+> Dan Tufiş, Ide N., Erjavec T. *Standardised Specifications, Development and
+> Assessment of Large Morpho-Lexical Resources for Six Central and Eastern
+> European Languages.* First International Conference on Language Resources and
+> Evaluation, Granada, 28–30 May 1998, pp. 233–240.
+
+> Dimitrova L., Erjavec T., Ide N., Kaalep H.J., Petkevič V., Tufiş D.
+> *MULTEXT-East: Parallel and Comparable Corpora and Lexicons for Six Central
+> and Eastern European Languages.* COLING-ACL, Montréal, 1998.
+
 The Romanian portion derives from work by Dan Tufiș and colleagues at RACAI
 (Research Institute for Artificial Intelligence "Mihai Drăgănescu", Romanian
 Academy). The MULTEXT-East morphosyntactic specification defines the MSD tagset
@@ -90,8 +101,9 @@ differently:
   distributed, but which the service exposes through an API.
 
 Whether either use produces "adapted material" that triggers ShareAlike — and
-what that would require of a commercial service — is a genuine question rather
-than a settled one, and it is being clarified with the rights holders. Nothing
-here should be read as a determination either way.
+what that would require of a commercial service — is a genuine question rather than a settled one. The rights holders have
+confirmed CC BY-SA 4.0 as the applicable licence; the commercial implications of
+the ShareAlike condition are being reviewed separately. Nothing here should be
+read as a determination either way.
 
 Attribution as required by both licences is given above.
