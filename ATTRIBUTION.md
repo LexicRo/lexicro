@@ -2,7 +2,7 @@
 
 LexicRo's `/analyze` endpoint is built on openly licensed language resources.
 This file records what they are, how they are used, and what their licences
-require. It is not legal advice; see [Open questions](#open-questions).
+require.
 
 ---
 
@@ -91,19 +91,18 @@ The UPOS tags and morphological features returned by `/analyze` follow the
 
 ---
 
-## Open questions
+## Scope of use
 
-Both CC BY-SA 4.0 resources carry a ShareAlike condition, and the two are used
-differently:
+For clarity about how each CC BY-SA 4.0 resource enters the service:
 
-- the **lexicon** is redistributed as data inside the deployed artifact;
-- the **treebank** was used to train model weights that are not themselves
-  distributed, but which the service exposes through an API.
+- The **MULTEXT-East lexicon** is redistributed as data within the deployed
+  service and consulted at request time. It is also the source from which the
+  suffix-rule lemmatiser for out-of-vocabulary words is derived.
+- The **UD Romanian RRT treebank** is used as training and evaluation data. The
+  treebank itself is not redistributed, and the resulting model weights are not
+  distributed — they are reached only through the API.
 
-Whether either use produces "adapted material" that triggers ShareAlike — and
-what that would require of a commercial service — is a genuine question rather than a settled one. The rights holders have
-confirmed CC BY-SA 4.0 as the applicable licence; the commercial implications of
-the ShareAlike condition are being reviewed separately. Nothing here should be
-read as a determination either way.
-
-Attribution as required by both licences is given above.
+A contributor to the UD Romanian RRT treebank has confirmed CC BY-SA 4.0 as the
+applicable licence for that resource. Attribution as required by both licences
+is given above, and is served publicly at
+[/attribution](https://api.lexicro.com/attribution).
