@@ -58,9 +58,12 @@ app = FastAPI(
 dependencies = [Depends(api_key_header), Depends(check_rate_limit)]
 
 app.include_router(conjugate.router, dependencies=dependencies)
-app.include_router(lookup.router, dependencies=dependencies)
-app.include_router(inflect.router, dependencies=dependencies)
-app.include_router(difficulty.router, dependencies=dependencies)
+# Disabled 2026-08-17: /lookup, /inflect and /difficulty proxy dexonline.ro,
+# whose terms prohibit automated access without prior written consent.
+# Permission requested; do not re-enable without a written yes. See docs ADR.
+# app.include_router(lookup.router, dependencies=dependencies)
+# app.include_router(inflect.router, dependencies=dependencies)
+# app.include_router(difficulty.router, dependencies=dependencies)
 app.include_router(analyze.router, dependencies=dependencies)
 app.include_router(docs.router)          # public, no dependencies
 app.include_router(keys_router)
