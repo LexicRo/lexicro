@@ -15,11 +15,20 @@ from app.middleware.rate_limit import check_rate_limit
 
 client = TestClient(app)
 
-# Schema-contract tests assert the SHAPE of the response. The rate limiter
-# queries Postgres on every route, which would make these tests depend on a
-# migrated database to check a JSON key. Stub it out: limiter behaviour is
-# not what these tests are for.
-app.dependency_overrides[check_rate_limit] = lambda: None
+
+@pytest.fixture(autouse=True)
+def _stub_rate_limiter():
+    """Schema-contract tests assert the SHAPE of a response.
+
+    The rate limiter queries Postgres on every route, so without this these
+    tests would need a migrated database to check a JSON key. Scoped to a
+    fixture rather than module scope: `app` is a singleton shared by every
+    test module, and a leaked override makes unrelated tests pass for the
+    wrong reason.
+    """
+    app.dependency_overrides[check_rate_limit] = lambda: None
+    yield
+    app.dependency_overrides.pop(check_rate_limit, None)
 
 
 class FakeAnalyzer:
