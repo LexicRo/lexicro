@@ -10,6 +10,6 @@ sqlalchemy[asyncio]>=2.0.0
 python-dotenv>=1.0.0
 transformers>=4.40
 markdown>=3.5
-./vendor/lexicro_nlp-0.3.2-py3-none-any.whl
+./vendor/lexicro_nlp-0.4.0-py3-none-any.whl
 python-multipart
 httpx

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -46,6 +47,14 @@ class AnalyzeRequest(BaseModel):
     )
 
 
+class CandidateOut(BaseModel):
+    lemma: str = Field(..., description="Dictionary base form for this reading")
+    upos: str = Field(..., description="Universal POS tag for this reading")
+    feats: dict[str, str] = Field(
+        default_factory=dict, description="Universal Features for this reading"
+    )
+
+
 class TokenOut(BaseModel):
     form: str = Field(..., description="The token as it appeared in the text")
     lemma: str = Field(..., description="Dictionary base form")
@@ -54,10 +63,28 @@ class TokenOut(BaseModel):
         default_factory=dict,
         description="Universal Features: Case, Number, Gender, Person, Tense, Mood, ...",
     )
-    source: str = Field(
-        ...,
-        description="Where the lemma came from: 'lexicon' (exact lookup) or "
-                    "'model' (predicted for an out-of-vocabulary word)",
+    source: Literal["lexicon", "suffix", "model"] | None = Field(
+        None,
+        description=(
+            "Which subsystem produced the LEMMA: 'lexicon' (exact dictionary "
+            "lookup), 'suffix' (morphological rule, for a word outside the "
+            "lexicon) or 'model' (neural prediction). This is provenance, NOT a "
+            "confidence score -- punctuation and numerals return 'model' because "
+            "they are absent from the lexicon, not because the answer is "
+            "doubtful. Absent entirely when the token fell past the truncation "
+            "limit and was not analysed."
+        ),
+    )
+    candidates: list[CandidateOut] | None = Field(
+        None,
+        description=(
+            "Other readings the lexicon lists for this form. Present only when "
+            "it lists more than one. The reading chosen in context is the one in "
+            "this token's own fields, and it is NOT guaranteed to appear in this "
+            "list: the lexicon disagrees with the treebank's conventions on "
+            "about 6% of tokens, so the model legitimately returns readings the "
+            "lexicon never offered."
+        ),
     )
 
 
@@ -69,7 +96,16 @@ class AnalyzeResponse(BaseModel):
     model_version: str = Field(
         ...,
         description="Frozen weights + lexicon + tagset. Identical input and "
-                    "model_version always yield identical output.",
+                    "model_version always yield identical values for every "
+                    "field below.",
+    )
+    truncated: bool = Field(
+        ...,
+        description=(
+            "True when at least one sentence exceeded the model's per-sentence "
+            "limit. Tokens past the cut are still returned -- with upos 'X' and "
+            "no 'source' -- so the token count still matches the input."
+        ),
     )
     sentences: list[SentenceOut]
 
@@ -77,6 +113,7 @@ class AnalyzeResponse(BaseModel):
 @router.post(
     "/analyze",
     response_model=AnalyzeResponse,
+    response_model_exclude_none=True,
     summary="Morphological analysis of Romanian text",
     description=(
         "Returns, for every token in context: its lemma, part of speech, and "
@@ -90,15 +127,16 @@ class AnalyzeResponse(BaseModel):
 def analyze(req: AnalyzeRequest) -> AnalyzeResponse:
     analyzer = get_analyzer()
     try:
-        sentences = analyzer.analyze(req.text)
+        result = analyzer.analyze(req.text)
     except ValueError as exc:                      # text too long
         raise HTTPException(status_code=413, detail=str(exc)) from exc
 
     return AnalyzeResponse(
         model_version=analyzer.model_version,
+        truncated=result.truncated,
         sentences=[
             SentenceOut(tokens=[TokenOut(**t.to_dict()) for t in sent])
-            for sent in sentences
+            for sent in result.sentences
         ],
     )
 
