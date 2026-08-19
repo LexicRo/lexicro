@@ -1,6 +1,6 @@
 # LexicRo API
 
-Romanian Language Intelligence Infrastructure — open-core REST API for morphological analysis, conjugation, and lexical lookup.
+Romanian Language Intelligence Infrastructure — open-core REST API for Romanian morphological analysis and verb conjugation.
 
 **Status:** Phase 1 in active development · [lexicro.com](https://lexicro.com) · [contact@lexicro.com](mailto:contact@lexicro.com)
 
@@ -57,117 +57,34 @@ Returns the full conjugation table across all moods and tenses, including perfec
 
 ---
 
-### Lexical lookup
-GET /lookup/{word}
-Returns definitions from main Romanian dictionary sources (DEX '09, MDA2, DLRLC). HTML formatting is stripped from all definition text.
+### Morphological analysis
 
-**Example:** `GET /lookup/casă`
-
-```json
-{
-  "word": "casă",
-  "definitions": [
-    {
-      "id": "841993",
-      "source": "DEX '09",
-      "text": "CASĂ1, case, s. f. 1. Clădire care servește drept locuință...",
-      "modified": "2023-09-01"
-    },
-    {
-      "id": "1048907",
-      "source": "MDA2",
-      "text": "casă1 sf ...",
-      "modified": "2022-01-03"
-    }
-  ],
-  "definition_count": 2
-}
 ```
+POST /analyze
+```
+
+Returns lemma, part of speech and morphological features for every token **in
+context** — the reading a dictionary alone cannot resolve.
+
+Full documentation: [docs/analyze.md](docs/analyze.md) · live at
+[api.lexicro.com/guide](https://api.lexicro.com/guide).
 
 ---
+
+## Temporarily unavailable
+
+`GET /lookup/{word}`, `GET /inflect/{word}` and `POST /difficulty` are
+**disabled** and are not served by the API.
+
+These three are backed by DEXonline data, and are withdrawn pending a permission
+decision on that source. The route handlers remain in the tree but are not
+registered in `app/main.py`. They will be documented here again if and when they
+return — treat any older description of them as out of date.
+
+See [ATTRIBUTION.md](ATTRIBUTION.md) for the data sources currently in use.
+
 ---
 
-### Inflection
-
-```
-GET /inflect/{word}
-```
-
-Returns basic inflection information extracted from dictionary headers —
-plural forms for nouns, comparative/feminine forms for adjectives, first
-person present for verbs.
-
-**Phase 1 limitation:** covers the most common inflected forms only. Full
-paradigm tables (all cases, numbers, genders) are planned for Phase 2.
-
-**Example:** `GET /inflect/casă`
-
-```json
-{
-  "word": "casă",
-  "word_type": "substantiv feminin",
-  "forms": "case",
-  "source": "DEX '09",
-  "note": "Basic inflection extracted from dictionary header. Full paradigm tables (all cases) available in Phase 2."
-}
-```
-
-**Example:** `GET /inflect/frumos`
-
-```json
-{
-  "word": "frumos",
-  "word_type": "adjectiv",
-  "forms": "frumoși, -oase",
-  "source": "DEX '09",
-  "note": "Basic inflection extracted from dictionary header. Full paradigm tables (all cases) available in Phase 2."
-}
-```
----
-
-### Difficulty / Word validation
-
-```
-POST /difficulty
-```
-
-**Phase 1:** validates whether a word exists in standard Romanian dictionaries
-(DEX '09, MDA2, DLRLC). Full CEFR level scoring is planned for Phase 2.
-
-**Request:**
-
-```json
-{"text": "casă"}
-```
-
-**Response — valid word:**
-
-```json
-{
-  "text": "casă",
-  "valid_romanian_word": true,
-  "cefr_level": null,
-  "confidence": "none",
-  "method": "dictionary_validation",
-  "explanation": "Word found in standard Romanian dictionaries (DEX '09, MDA2, or DLRLC).",
-  "note": "Phase 1: word validation only..."
-}
-```
-
-**Response — word not found:**
-
-```json
-{
-  "text": "xyzabc",
-  "valid_romanian_word": false,
-  "cefr_level": null,
-  "confidence": "none",
-  "method": "dictionary_validation",
-  "explanation": "Word not found in main dictionary sources. May be specialised, archaic, misspelled, or not a Romanian word.",
-  "note": "Phase 1: word validation only..."
-}
-```
----
 ## Running locally
 
 **Requirements:** Python 3.13+
@@ -202,7 +119,8 @@ lexicro/
 │   ├── main.py              # FastAPI app entry point
 │   ├── routers/
 │   │   ├── conjugate.py     # GET /conjugate/{verb}
-│   │   └── lookup.py        # GET /lookup/{word}
+│   │   ├── analyze.py       # POST /analyze
+│   │   └── lookup.py        # GET /lookup/{word}  (not registered)
 │   ├── services/
 │   │   ├── verbecc_service.py   # verbecc wrapper
 │   │   └── dex_service.py       # DEXonline wrapper
@@ -220,8 +138,8 @@ lexicro/
 | Phase | Scope | Status |
 |---|---|---|
 |       |       |        |
-| 1 | Conjugation + lexical lookup + inflection + word validation · Free tier | 🔨 In progress |
-| 2 | Romanian BERT fine-tuning · `/analyze` morphological endpoint | Planned |
+| 1 | Conjugation · Free tier | 🔨 In progress — lookup / inflection / validation withdrawn, see above |
+| 2 | Romanian BERT fine-tuning · `/analyze` morphological endpoint | ✅ Live |
 | 3 | Grammar checker · CEFR scorer · Paid tiers | Planned |
 | 4 | Enterprise · On-premise packaging | Planned |
 

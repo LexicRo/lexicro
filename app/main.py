@@ -12,8 +12,7 @@ class UTF8JSONResponse(JSONResponse):
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 DESCRIPTION = """
-Romanian language APIs - morphological analysis, conjugation, inflection and
-lexical lookup.
+Romanian language APIs - morphological analysis and verb conjugation.
 
 ## Authentication
 
