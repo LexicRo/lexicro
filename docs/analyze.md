@@ -165,7 +165,12 @@ Two things to know before you rely on it:
   unambiguous. `source: "suffix"` or `"model"` means the form is not in the
   lexicon at all, so there is no inventory to report.
 
-About 35.68% of tokens in running text carry a `candidates` list.
+About 35.68% of tokens in running text carry a `candidates` list. That is much
+higher than the 4.49% of lexicon *forms* that are lemma-ambiguous, mentioned
+below, and the two are not in conflict: ambiguity concentrates in common
+words, and `candidates` reports any alternative reading — including a
+different part of speech or different features for the same lemma — not only
+a different lemma.
 
 ---
 
