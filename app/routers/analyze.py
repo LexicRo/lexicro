@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -62,7 +63,7 @@ class TokenOut(BaseModel):
         default_factory=dict,
         description="Universal Features: Case, Number, Gender, Person, Tense, Mood, ...",
     )
-    source: str | None = Field(
+    source: Literal["lexicon", "suffix", "model"] | None = Field(
         None,
         description=(
             "Which subsystem produced the LEMMA: 'lexicon' (exact dictionary "
@@ -99,7 +100,7 @@ class AnalyzeResponse(BaseModel):
                     "field below.",
     )
     truncated: bool = Field(
-        False,
+        ...,
         description=(
             "True when at least one sentence exceeded the model's per-sentence "
             "limit. Tokens past the cut are still returned -- with upos 'X' and "

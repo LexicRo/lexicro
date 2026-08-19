@@ -109,26 +109,35 @@ they arrive mangled, so will the analysis.
 | `upos` | [Universal POS tag](https://universaldependencies.org/u/pos/). |
 | `feats` | [Universal Features](https://universaldependencies.org/u/feat/) — an object, empty for tokens with no morphology. |
 | `source` | Where the **lemma** came from. See below. |
+| `candidates` | Other readings the lexicon lists for this form, when there's more than one. See below. |
 
 ### The `source` field
 
-This is provenance, not confidence, and it is genuinely useful — the three
-values come from mechanisms with quite different reliability:
+This is provenance, not confidence: it tells you which subsystem produced the
+**lemma**, nothing about whether that particular lemma is right.
 
-| value | meaning | lemma accuracy |
+| value | meaning | lemma accuracy, class average |
 |---|---|---|
 | `lexicon` | Exact dictionary lookup. The word is in a 352,004-form lexicon and its lemma is a fact, not a prediction. | 96.3% |
 | `suffix` | Not in the lexicon; resolved by morphological suffix rules derived from that lexicon. | — |
-| `model` | Not in the lexicon; predicted by the neural model. Neologisms, proper nouns, foreign words, typos. | 93.3% (combined with `suffix`) |
+| `model` | Not in the lexicon; predicted by the neural model. Punctuation, numerals, neologisms, proper nouns, foreign words, typos. | 93.3% (combined with `suffix`) |
 
 About 73% of tokens in ordinary text come back as `lexicon`.
 
-**`source` is provenance, not confidence — do not use it as a trust signal.**
-Punctuation, numerals and most proper nouns come back as `model` because they
-are absent from the lexicon, not because the analysis is doubtful. A full stop
-is `model` on every request. If you want to know whether a word was
-*ambiguous*, read `candidates` below; if you want to know how much to trust a
-reading, no such figure is published yet.
+**Read the accuracy column as a description of each class, not of any one
+token.** It is the accuracy measured across every token that landed in that
+class on the RRT test split — a population figure, not a per-token score, and
+`/analyze` has no way to tell you where in that population a given token sits.
+This matters most for `model`: a full stop and a genuine neologism both come
+back as `model`, and the class average blends a token that is trivially always
+right (punctuation) with tokens that are genuinely hard (unseen words). The
+93.3% says nothing about which kind *this* token was.
+
+**So `source` is not a trust signal, and the table above is not one either —
+do not threshold on it.** If you want to know whether a specific word was
+*ambiguous*, read `candidates` below: it is the one field that speaks about an
+individual token rather than a class of them. No general per-token confidence
+figure is published yet.
 
 ### The `candidates` field
 
@@ -143,8 +152,16 @@ that form. Each entry is a `{lemma, upos, feats}` the form could have been:
   "feats": {"Mood": "Ind", "Tense": "Imp", "Number": "Sing", "Person": "3"},
   "source": "lexicon",
   "candidates": [
-    {"lemma": "fi",  "upos": "AUX",  "feats": {"Mood": "Ind", "Tense": "Imp"}},
-    {"lemma": "eră", "upos": "NOUN", "feats": {"Case": "Acc,Nom", "Number": "Sing"}}
+    {
+      "lemma": "eră",
+      "upos": "NOUN",
+      "feats": {"Case": "Acc,Nom", "Definite": "Def", "Gender": "Fem", "Number": "Sing"}
+    },
+    {
+      "lemma": "fi",
+      "upos": "VERB",
+      "feats": {"Mood": "Ind", "Number": "Sing", "Person": "3", "Tense": "Imp", "VerbForm": "Fin"}
+    }
   ]
 }
 ```
@@ -152,6 +169,16 @@ that form. Each entry is a `{lemma, upos, feats}` the form could have been:
 The reading **chosen in context** is the one in the token's own `lemma` / `upos`
 / `feats`. `candidates` is the dictionary's inventory beside it — which is
 exactly why this endpoint exists rather than a dictionary lookup.
+
+Look closely and the two don't match: the token's own `upos` is `AUX`, but the
+lexicon's entry for the copula, sitting right there in `candidates`, is tagged
+`VERB`. That is not a bug in this example — MULTEXT-East doesn't distinguish
+auxiliary from main verb the way UD does, so the lexicon has no `AUX` entry for
+*fi* to offer. `source` is still `"lexicon"`: the lemma `fi` came from that
+`VERB` entry, matched to the model's `AUX` prediction by tag class rather than
+by an exact tag match. The lemma is a lexicon fact either way; the tag shown in
+`candidates` is just the lexicon's own, in the lexicon's own convention. This is
+the concrete case the caveat below is about, not a hypothetical one.
 
 Two things to know before you rely on it:
 

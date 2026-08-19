@@ -73,6 +73,25 @@ def test_ambiguous_token_carries_candidates(fake):
     assert tok["lemma"] == "fi"
 
 
+def test_fourth_source_value_fails_loudly(fake):
+    """ADR-0022 / finding 2: `source` is Literal["lexicon", "suffix", "model"].
+
+    A bogus fourth value must never reach a client -- it should fail response
+    validation rather than being serialised and published, which is exactly
+    the failure mode this ADR exists to close off.
+    """
+    fake(Analysis(sentences=[[Token("x", "x", "X", {}, "bogus")]]))
+    # Observed behaviour: TokenOut(**t.to_dict()) inside the handler raises
+    # pydantic's own ValidationError before FastAPI's response-model layer
+    # even runs -- so the failure is a raw pydantic_core.ValidationError,
+    # not a wrapped fastapi.exceptions.ResponseValidationError. Either way
+    # the point holds: the bogus value never reaches serialisation.
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="source"):
+        client.post("/analyze", json={"text": "x"})
+
+
 def test_truncated_token_omits_source_key(fake):
     fake(Analysis(sentences=[[Token("cuvântul", "cuvântul", "X", {})]], truncated=True))
     r = client.post("/analyze", json={"text": "cuvântul"})
