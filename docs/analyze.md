@@ -95,7 +95,7 @@ they arrive mangled, so will the analysis.
 
 | field | notes |
 |---|---|
-| `model_version` | Identifies the exact weights, lexicon and tagset used. Same input and `model_version` always produce identical output. |
+| `model_version` | Identifies the exact weights, lexicon and tagset used. Same input and `model_version` always yield identical values for every field — lemma, tags, features and all — though the set of fields present can grow over time. |
 | `truncated` | Whether any sentence exceeded the model's internal length limit. Tokens past the cut are still returned, with `upos: "X"` and no `source`. |
 | `sentences[]` | One entry per detected sentence. |
 | `sentences[].tokens[]` | One entry per token, in order. |
