@@ -23,6 +23,7 @@ curl -X POST https://api.lexicro.com/analyze \
 ```json
 {
   "model_version": "phase2-baseline-0.1",
+  "truncated": false,
   "sentences": [
     {
       "tokens": [
@@ -119,9 +120,52 @@ values come from mechanisms with quite different reliability:
 | `suffix` | Not in the lexicon; resolved by morphological suffix rules derived from that lexicon. | — |
 | `model` | Not in the lexicon; predicted by the neural model. Neologisms, proper nouns, foreign words, typos. | 93.3% (combined with `suffix`) |
 
-About 73% of tokens in ordinary text come back as `lexicon`. If you are
-processing unusual vocabulary and want to flag uncertain results, `source !=
-"lexicon"` is the check to make.
+About 73% of tokens in ordinary text come back as `lexicon`.
+
+**`source` is provenance, not confidence — do not use it as a trust signal.**
+Punctuation, numerals and most proper nouns come back as `model` because they
+are absent from the lexicon, not because the analysis is doubtful. A full stop
+is `model` on every request. If you want to know whether a word was
+*ambiguous*, read `candidates` below; if you want to know how much to trust a
+reading, no such figure is published yet.
+
+### The `candidates` field
+
+Present on a token **only when the lexicon lists more than one reading** for
+that form. Each entry is a `{lemma, upos, feats}` the form could have been:
+
+```json
+{
+  "form": "era",
+  "lemma": "fi",
+  "upos": "AUX",
+  "feats": {"Mood": "Ind", "Tense": "Imp", "Number": "Sing", "Person": "3"},
+  "source": "lexicon",
+  "candidates": [
+    {"lemma": "fi",  "upos": "AUX",  "feats": {"Mood": "Ind", "Tense": "Imp"}},
+    {"lemma": "eră", "upos": "NOUN", "feats": {"Case": "Acc,Nom", "Number": "Sing"}}
+  ]
+}
+```
+
+The reading **chosen in context** is the one in the token's own `lemma` / `upos`
+/ `feats`. `candidates` is the dictionary's inventory beside it — which is
+exactly why this endpoint exists rather than a dictionary lookup.
+
+Two things to know before you rely on it:
+
+- **The chosen reading is not guaranteed to appear in `candidates`.** The
+  lexicon and the treebank disagree on annotation conventions for about 6% of
+  tokens — auxiliary versus main verb, participles as adjectives, determiner
+  versus pronoun — so the model legitimately returns readings the lexicon never
+  offered. Treat `candidates` as "what the dictionary knows", not as a closed
+  set the answer was drawn from.
+- **Absence means one of two things, and `source` tells you which.**
+  `source: "lexicon"` with no `candidates` means the form is in the lexicon and
+  unambiguous. `source: "suffix"` or `"model"` means the form is not in the
+  lexicon at all, so there is no inventory to report.
+
+About 35.68% of tokens in running text carry a `candidates` list.
 
 ---
 
@@ -188,7 +232,13 @@ Worth knowing before you build on it:
   sentence per request for exact control.
 - **The model never abstains.** Given a typo or an invented word it returns a
   plausible analysis rather than an error. `source` tells you when a lemma was
-  predicted rather than looked up.
+  predicted rather than looked up, and `candidates` shows what it was choosing
+  between when the word was ambiguous.
+- **Very long sentences are truncated.** If a single sentence exceeds the
+  model's internal limit, the response carries `"truncated": true`. Tokens past
+  the cut are still returned — so your token count matches your input — but with
+  `upos: "X"` and **no `source` key**, because nothing analysed them. Send
+  shorter sentences if you hit this.
 - **Standard Romanian only.** Dialectal and heavily informal text is outside
   what the training data covers.
 - **20,000 character limit** per request; longer text returns **413**.
