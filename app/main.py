@@ -9,6 +9,7 @@ from app import __version__
 import logging
 from contextlib import asynccontextmanager
 
+import asyncpg
 from sqlalchemy import text
 from sqlalchemy.exc import ProgrammingError
 
@@ -90,7 +91,20 @@ async def _read_ledger() -> dict[str, str]:
             result = await session.execute(
                 text("SELECT filename, checksum FROM schema_migrations")
             )
-        except ProgrammingError:
+        except ProgrammingError as exc:
+            # SQLAlchemy's asyncpg dialect maps asyncpg's whole
+            # SyntaxOrAccessError family (SQLSTATE class 42) onto
+            # ProgrammingError -- including InsufficientPrivilegeError and
+            # UndefinedColumnError, not just a missing table. Only a
+            # genuinely absent table means "unmigrated"; every other fault
+            # in that family is real and must surface as itself rather than
+            # be reported to the operator as "nothing applied". The dialect
+            # raises its DBAPI wrapper `from` the original asyncpg
+            # exception, and SQLAlchemy raises `ProgrammingError` `from`
+            # that wrapper (`.orig`) -- so the original asyncpg exception is
+            # `exc.orig.__cause__`.
+            if not isinstance(exc.orig.__cause__, asyncpg.exceptions.UndefinedTableError):
+                raise
             return {}
         return {row.filename: row.checksum for row in result}
 
