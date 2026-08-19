@@ -221,3 +221,49 @@ Worth migrating when there is time to test it properly.
 deploying a new model the day before two weeks away is how you return to a
 subtle regression nobody was watching. The current model is measured, deployed
 and behaving. It keeps.
+
+## Database migrations
+
+Schema changes ship as numbered files in `migrations/`, applied in filename
+order and recorded in a `schema_migrations` table. `deploy.sh` applies pending
+migrations before the API starts, and **the API refuses to serve a database
+behind the migrations in its own image** — a crash-loop, deliberately, so the
+`/health` monitor turns it into an alert.
+
+Check state at any time, read-only and safe on a live service:
+
+```bash
+docker compose run --rm api python scripts/migrate.py --status
+```
+
+`docker compose run` overrides the image's command, so this does not start the
+API and does not trigger the startup gate.
+
+**Migrations are append-only.** Never edit one that has been applied anywhere —
+the ledger stores a checksum, and an edit becomes a fatal startup error. To
+correct a mistake, add a new migration.
+
+### Adopting an existing database (once per database)
+
+A database that predates this mechanism has the schema but no ledger. Stamp it
+without re-running anything:
+
+```bash
+git pull
+docker compose build api                                            # 1. the script lives in the NEW image
+docker compose run --rm api python scripts/migrate.py --status      # 2. confirm: empty ledger, 3 pending
+docker compose run --rm api python scripts/migrate.py --baseline 003 # 3. stamp
+./deploy.sh                                                          # 4. only now
+```
+
+**The build in step 1 is not optional** — the currently-running image does not
+contain `scripts/migrate.py`. And the order matters: deploying the gated image
+before stamping leaves an empty ledger, so the API sees three missing
+migrations and crash-loops until someone stamps it.
+
+Steps 1-3 are safe on a live service. `docker compose run` overrides the
+image's command, so the API never starts and the gate never fires; the previous
+container keeps serving until step 4.
+
+Baselining too high silently skips a migration that will then never run.
+Always `--status` first.
