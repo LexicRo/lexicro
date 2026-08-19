@@ -11,8 +11,15 @@ from lexicro_nlp.analyzer import Analysis, Token
 
 import app.routers.analyze as analyze_mod
 from app.main import app
+from app.middleware.rate_limit import check_rate_limit
 
 client = TestClient(app)
+
+# Schema-contract tests assert the SHAPE of the response. The rate limiter
+# queries Postgres on every route, which would make these tests depend on a
+# migrated database to check a JSON key. Stub it out: limiter behaviour is
+# not what these tests are for.
+app.dependency_overrides[check_rate_limit] = lambda: None
 
 
 class FakeAnalyzer:
