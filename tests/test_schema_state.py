@@ -1,6 +1,6 @@
 """Pure schema-state logic (ADR-0023). No database, no filesystem beyond tmp_path."""
 
-from app.schema_state import SchemaState, checksum, diff, discover, normalise
+from app.schema_state import checksum, diff, discover, normalise
 
 
 def test_normalise_converts_crlf_to_lf():

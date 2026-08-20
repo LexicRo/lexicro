@@ -8,7 +8,12 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      # -h 127.0.0.1 forces the check over TCP. Without it, pg_isready hits
+      # the unix socket, which the official image's temporary initdb server
+      # (listen_addresses='') answers even though it isn't accepting TCP yet
+      # -- so the container can report healthy before port 5432 is actually
+      # up, and deploy.sh's migrate.py --apply connects over TCP right after.
+      test: ["CMD-SHELL", "pg_isready -U postgres -h 127.0.0.1"]
       interval: 5s
       timeout: 5s
       retries: 5

@@ -92,3 +92,17 @@ async def test_read_ledger_reraises_non_missing_table_errors(monkeypatch):
 
     with pytest.raises(ProgrammingError):
         await _read_ledger()
+
+
+@pytest.mark.asyncio
+async def test_read_ledger_returns_empty_dict_for_missing_table(monkeypatch):
+    # The branch a fresh or unbaselined environment actually hits: no
+    # schema_migrations table yet. Must be reported as an empty ledger, not
+    # raised -- that's what lets verify_schema print "not applied: ..."
+    # instead of the operator seeing a raw driver traceback.
+    exc = _programming_error_wrapping(asyncpg.exceptions.UndefinedTableError(
+        'relation "schema_migrations" does not exist'
+    ))
+    monkeypatch.setattr("app.main.AsyncSessionLocal", lambda: _RaisingSession(exc))
+
+    assert await _read_ledger() == {}

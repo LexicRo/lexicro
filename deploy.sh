@@ -21,7 +21,9 @@ docker compose up -d db
 docker compose run --rm api python scripts/migrate.py --apply
 
 # v1.29.2 ContainerConfig workaround, retained deliberately -- see ADR-0004.
-docker compose rm -f api
+# `|| true`: under set -e, a nonzero exit here (e.g. the container was
+# already gone) would abort the deploy before the `up -d` below ever runs.
+docker compose rm -f api || true
 docker compose up -d
 
 echo "Deployed successfully"

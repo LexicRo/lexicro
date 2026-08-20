@@ -102,8 +102,13 @@ async def _read_ledger() -> dict[str, str]:
             # raises its DBAPI wrapper `from` the original asyncpg
             # exception, and SQLAlchemy raises `ProgrammingError` `from`
             # that wrapper (`.orig`) -- so the original asyncpg exception is
-            # `exc.orig.__cause__`.
-            if not isinstance(exc.orig.__cause__, asyncpg.exceptions.UndefinedTableError):
+            # `exc.orig.__cause__`. Read via getattr rather than a direct
+            # attribute access: if exc.orig is ever None (a DBAPI wrapper
+            # SQLAlchemy didn't set), `.__cause__` would raise AttributeError
+            # from inside this handler and mask the real original exception.
+            if not isinstance(
+                getattr(exc.orig, "__cause__", None), asyncpg.exceptions.UndefinedTableError
+            ):
                 raise
             return {}
         return {row.filename: row.checksum for row in result}
