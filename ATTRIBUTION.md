@@ -106,3 +106,13 @@ A contributor to the UD Romanian RRT treebank has confirmed CC BY-SA 4.0 as the
 applicable licence for that resource. Attribution as required by both licences
 is given above, and is served publicly at
 [/attribution](https://api.lexicro.com/attribution).
+
+---
+
+## Acknowledgements
+
+**Alex — [voroave.ro](https://voroave.ro)** — for pointing out DEXonline's
+official dataset dumps at [dexonline.ro/tools](https://dexonline.ro/tools),
+along with [dexonline.ro/surse](https://dexonline.ro/surse) and
+[clre.solirom.ro](https://clre.solirom.ro/). voroave.ro is his own project: an
+effort to surface Romanian words that are dusty but not yet archaic.

@@ -155,8 +155,21 @@ Interactive docs: `https://api.lexicro.com/docs`
 
 ## Licence
 
-Code: [MIT](LICENSE)  
-Model weights (Phase 2+): CC BY-NC 4.0 — free for research and non-commercial use.
+**Code: [MIT](LICENSE)** — both the API service and the `lexicro-nlp`
+morphological engine.
+
+**Model weights: not currently distributed.** They are trained on CC BY-SA 4.0
+material, and their licence terms are still being settled with the rights
+holders. This page previously stated CC BY-NC 4.0; that was withdrawn in July
+2026, because CC BY-NC is not compatible with the ShareAlike terms of the
+training data. Nothing has replaced it yet, and saying so is more useful than
+naming a licence that would not hold.
+
+In practice: you can read, fork and build on the code today, but standing up
+your own instance means training your own model.
+
+Attribution for the underlying language resources is in
+[ATTRIBUTION.md](ATTRIBUTION.md).
 
 ---
 
