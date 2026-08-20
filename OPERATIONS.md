@@ -250,10 +250,11 @@ without re-running anything:
 
 ```bash
 git pull
-docker compose build api                                            # 1. the script lives in the NEW image
-docker compose run --rm api python scripts/migrate.py --status      # 2. confirm: empty ledger, 3 pending
-docker compose run --rm api python scripts/migrate.py --baseline 003 # 3. stamp
-./deploy.sh                                                          # 4. only now
+docker compose build api                                             # 1. the script lives in the NEW image
+docker compose run --rm api python scripts/migrate.py --status       # 2. confirm: empty ledger, 3 pending
+docker compose exec db psql -U postgres -d lexicro                   # 3. inspect the actual schema
+docker compose run --rm api python scripts/migrate.py --baseline 003 # 4. stamp -- use the number the inspection gave you
+./deploy.sh                                                          # 5. only now
 ```
 
 **The build in step 1 is not optional** — the currently-running image does not
@@ -261,9 +262,79 @@ contain `scripts/migrate.py`. And the order matters: deploying the gated image
 before stamping leaves an empty ledger, so the API sees three missing
 migrations and crash-loops until someone stamps it.
 
-Steps 1-3 are safe on a live service. `docker compose run` overrides the
-image's command, so the API never starts and the gate never fires; the previous
-container keeps serving until step 4.
+**Step 2 tells you the ledger is empty. It does not tell you what to baseline
+to.** `--status` diffs the ledger table against the `migrations/` directory —
+filenames and checksums only. It never looks at a table or a column, so
+"empty ledger, 3 pending" is what it prints for *any* unbaselined database,
+regardless of what schema that database actually has. The command that can be
+wrong here is `--baseline`, and nothing about `--status` can catch it.
 
-Baselining too high silently skips a migration that will then never run.
-Always `--status` first.
+**Step 3 is the check that actually matters.** Look at what the database has
+and match it against the table below — derived from what each migration file
+creates, not from an assumption:
+
+| Observed schema | Baseline | Why |
+|---|---|---|
+| `api_keys` has `key_hash`/`key_prefix`/`revoked_at` (no plaintext `key` column) **and** `key_requests` exists | `--baseline 003` | All three migrations' changes are present |
+| `api_keys` has `key_hash`/`key_prefix`/`revoked_at` (no plaintext `key` column), but `key_requests` does **not** exist | `--baseline 002` | 001 and 002 are present; `deploy.sh`'s `--apply` will then run 003 |
+| `api_keys` still has a plaintext `key` column | `--baseline 001` | Only the initial schema is present; `--apply` will then run 002 and 003 |
+
+In `psql`:
+
+```sql
+\d api_keys
+\dt key_requests
+```
+
+Baselining too high silently skips a migration that will then never run —
+that is exactly what step 3 exists to prevent. `--status` cannot see it;
+only looking at the schema itself can.
+
+### When something goes wrong
+
+**A failed `--apply` during deploy does not take the API down.** In
+`deploy.sh`, `set -euo pipefail` halts the script the moment
+`migrate.py --apply` exits non-zero — before `docker compose rm -f api` and
+`up -d`. The previously running API container was never touched and keeps
+serving on the old (still schema-consistent) image. A failed deploy leaves
+you exactly where you started, not mid-air; fix the migration and re-run
+`./deploy.sh` when ready.
+
+**If the startup gate fires in production**, the API container will
+crash-loop (`restart: unless-stopped` keeps retrying it), and that crash loop
+*is* the alert — the `/health` monitor will fire because the container never
+comes up healthy. Diagnose without touching the crash-looping container:
+
+```bash
+docker compose run --rm api python scripts/migrate.py --status
+```
+
+This runs in a fresh one-off container and overrides the image's command, so
+it never triggers the gate itself. Read what it reports:
+
+- **`PENDING`** — the image shipped a migration the database doesn't have
+  yet. Run `docker compose run --rm api python scripts/migrate.py --apply`.
+  This is the ordinary case: `deploy.sh` should have done this already, so
+  seeing it here means the apply step itself failed or was skipped — check
+  the deploy log.
+- **`MISMATCH`** — an applied migration's file no longer matches what was
+  recorded when it ran. Migrations are append-only; find out what changed
+  (`git log -p -- migrations/<file>`) and either revert the edit or, if the
+  edit was deliberate, re-baseline past it — never just re-run it.
+- **`up to date` with no `PENDING`/`MISMATCH`** but the gate still fired —
+  the schema changed underneath the ledger (a manual `psql` change, a restore
+  from an out-of-band backup). Compare the live schema against the migration
+  files by hand.
+
+**Rollback.** `app/schema_state.py` treats migrations that are in the
+database but not in the image (`ahead`) as a warning, not a refusal —
+deliberately, per `SchemaState.ok`, "refusing would make rolling the
+application back impossible." That means rolling the app back to an older
+image is safe with respect to the gate: an older image will log a warning
+about migrations it doesn't recognise and serve anyway, rather than
+crash-loop. What it will *not* do is undo those migrations' schema changes
+or make the older code aware of them — this mechanism has no `down`
+migrations. If a migration is destructive (a dropped or renamed column an
+older code path still reads), rolling the image back does not undo the
+danger; you need a new forward migration or a restore from backup, not a
+downgrade.
