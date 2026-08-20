@@ -20,9 +20,12 @@ MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "migrations"
 def normalise(raw: bytes) -> bytes:
     """CRLF -> LF.
 
-    This repo has no .gitattributes and core.autocrlf rewrites line endings on
-    checkout, so the Windows working tree differs byte-for-byte from the Linux
-    checkout the image is built from. Hashing raw bytes would report a fatal
+    A .gitattributes pinning `eol=lf` landed 2026-08-20, so the Windows working
+    tree and the Linux checkout the image is built from should now agree. This
+    stays regardless, for two reasons: the checksums already recorded in every
+    ledger were computed through it, and it costs nothing to keep defending
+    against a file that reaches the container with CRLF by some other route --
+    an editor, an archive, a copy-paste. Hashing raw bytes would report a fatal
     checksum mismatch for a file nobody touched.
     """
     return raw.replace(b"\r\n", b"\n")

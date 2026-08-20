@@ -1,0 +1,27 @@
+# Line endings are decided here, once, rather than by whatever core.autocrlf
+# each machine happens to have. This repo is edited on Windows and runs on
+# Linux, so without this the two disagree byte-for-byte on files nobody
+# touched.
+#
+# Added 2026-08-20, prompted by two concrete failures the same day:
+# scripts/crontab must be LF or cron fails in confusing ways, and deploy.sh's
+# executable bit had drifted on the host unnoticed because core.autocrlf=false
+# on the Windows checkout hid the difference.
+
+# Normalise everything to LF in the repository AND in the working tree.
+* text=auto eol=lf
+
+# Binary. `text=auto` decides by heuristic; these are the files where guessing
+# wrong corrupts the content silently, so state it instead of detecting it.
+*.gz            binary
+*.whl           binary
+*.zip           binary
+*.png           binary
+*.jpg           binary
+*.pt            binary
+*.bin           binary
+*.safetensors   binary
+
+# PowerShell is Windows-side only (deploy.ps1 runs from Peter's machine, never
+# on the server), so it keeps the platform convention.
+*.ps1           text eol=crlf
