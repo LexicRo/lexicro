@@ -251,10 +251,18 @@ inside the runner's transaction, the file's `BEGIN` is a no-op warning and its
 `COMMIT` ends the runner's transaction early, so the ledger `INSERT` that
 follows lands in a separate implicit transaction instead of the migration's
 own. `--apply` strips a file's own top-level `BEGIN`/`COMMIT`/`ROLLBACK`/
-`START TRANSACTION` lines before running it (a `DO $$ BEGIN ... END $$;`
-block is left alone — that `BEGIN` is PL/pgSQL, not transaction control), but
-don't rely on that: write new migrations without their own transaction
-control in the first place.
+`START TRANSACTION` line only when that line consists of the bare keyword
+alone (optionally followed by `;`) and nothing else — for example a line
+that is just `BEGIN;` (a `DO $$ BEGIN ... END $$;` block is left alone —
+that `BEGIN` is PL/pgSQL, not transaction control). Anything more elaborate
+is **not** stripped — `BEGIN TRANSACTION;`, `COMMIT WORK;`, `START
+TRANSACTION ISOLATION LEVEL SERIALIZABLE;`, the bare `END;` COMMIT synonym,
+and multiple transaction-control statements packed onto one line (`BEGIN;
+SELECT 1; COMMIT;`) all survive stripping untouched. Rather than proceed
+with one of those still in the file, `--apply` re-scans the stripped text
+and **refuses to apply that migration** — reporting the file, the offending
+line, and this rule — so don't rely on the stripping at all: write new
+migrations without their own transaction control in the first place.
 
 ### Adopting an existing database (once per database)
 
@@ -361,7 +369,14 @@ it never triggers the gate itself. Read what it reports:
   success anyway — it cannot repair a `MISMATCH`. `--restamp` overwrites the
   recorded checksum with what's on disk now, which is the actual repair, and
   it says plainly at the confirmation prompt which files' checksums are
-  about to be overwritten.
+  about to be overwritten. **`N` is the number of the mismatched file
+  itself** — e.g. if `--status` reports `002` as `MISMATCH`, run `--restamp
+  002`, not the highest migration number in the tree. `--restamp` (like
+  `--baseline`) stamps every migration with prefix `<= N` as applied,
+  inserting fresh ledger rows for any of them that are genuinely still
+  `PENDING`. Passing a higher `N` than the mismatched file — for example
+  reusing `003` from the adoption example above — silently marks a pending
+  `003` as applied without ever running it.
 - **`up to date` with no `PENDING`/`MISMATCH`** but the gate still fired —
   the schema changed underneath the ledger (a manual `psql` change, a restore
   from an out-of-band backup). Compare the live schema against the migration

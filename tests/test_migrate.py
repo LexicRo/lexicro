@@ -63,18 +63,51 @@ def test_002_reduces_correctly_but_leaves_its_do_block_untouched():
     assert "END $$;" in lines
 
 
-def test_checksum_is_unaffected_by_stripping():
-    """The whole point of Fix B: hashing stays on RAW bytes. If stripping
-    ever leaked into what gets hashed, every already-stamped ledger row for
-    a migration with its own BEGIN/COMMIT would go MISMATCH on next deploy."""
-    raw = (Path(migrate.MIGRATIONS_DIR) / "002_api_key_hashing.sql").read_bytes()
-    before = checksum(raw)
-    migrate._strip_transaction_control(raw.decode("utf-8"))
-    after = checksum(raw)
-    assert before == after
-    # And the value itself must match what checksum() reports independently
-    # of anything migrate.py does -- i.e. it really is hashing the file as-is.
-    assert before == dict(discover(Path(migrate.MIGRATIONS_DIR)))["002_api_key_hashing.sql"]
+@pytest.mark.asyncio
+async def test_checksum_is_unaffected_by_stripping(tmp_path, monkeypatch):
+    """The whole point of Fix B: the ledger's checksum column stays bound to
+    RAW bytes, never to the stripped text. If cmd_apply's ledger INSERT ever
+    hashed the stripped text instead, every already-stamped migration with
+    its own BEGIN/COMMIT would flip to MISMATCH on the next deploy (checksum()
+    itself, and --status's diff() against it, always hash the file as-is).
+
+    This must drive cmd_apply, not just call checksum() on immutable bytes
+    around a discarded return value -- that shape can never fail, so it
+    would never have caught the exact regression this test guards against
+    (checksum(raw) -> checksum(executable.encode("utf-8")) in cmd_apply's
+    ledger insert). A migration fixture with its own BEGIN;/COMMIT; is
+    required so the two checksums actually differ; otherwise this would
+    pass even against that regression by coincidence.
+    """
+    migration_sql = "BEGIN;\nALTER TABLE t ADD COLUMN IF NOT EXISTS x INT;\nCOMMIT;\n"
+    raw = migration_sql.encode("utf-8")
+    (tmp_path / "002_self_transacting.sql").write_bytes(raw)
+
+    monkeypatch.setattr(migrate, "MIGRATIONS_DIR", tmp_path)
+    monkeypatch.setattr(migrate, "discover", lambda: discover(tmp_path))
+
+    stripped = migrate._strip_transaction_control(migration_sql)
+    assert stripped != migration_sql  # fixture must actually exercise stripping
+    assert checksum(raw) != checksum(stripped.encode("utf-8"))  # and diverge once hashed
+
+    conn = _FakeConn()
+    result = await migrate.cmd_apply(conn)
+    assert result == 0
+
+    insert_calls = [
+        (sql, args) for sql, args in conn.executed_calls
+        if "INSERT INTO schema_migrations" in sql
+    ]
+    assert len(insert_calls) == 1
+    _, insert_args = insert_calls[0]
+    name, bound_checksum, _version = insert_args
+
+    assert name == "002_self_transacting.sql"
+    assert bound_checksum == checksum(raw)
+    assert bound_checksum != checksum(stripped.encode("utf-8"))
+    # And matches what checksum() reports independently via discover(), i.e.
+    # it really is hashing the file as raw bytes, the same as --status does.
+    assert bound_checksum == dict(discover(tmp_path))["002_self_transacting.sql"]
 
 
 class _FakeTransaction:
@@ -96,6 +129,7 @@ class _FakeTransaction:
 class _FakeConn:
     def __init__(self):
         self.executed_sql = []
+        self.executed_calls = []  # (sql, args) for every execute() call, in order
         self.txn_events = []
 
     def transaction(self):
@@ -103,6 +137,7 @@ class _FakeConn:
 
     async def execute(self, sql, *args):
         self.executed_sql.append(sql)
+        self.executed_calls.append((sql, args))
 
     async def fetch(self, *args, **kwargs):
         return []
@@ -141,3 +176,69 @@ async def test_apply_wraps_a_self_transacting_migration_in_exactly_one_transacti
     assert "COMMIT;" not in executed
     assert "DO $$" in executed
     assert "BEGIN\n" in executed or executed.strip().endswith("BEGIN")
+
+
+# _strip_transaction_control only removes a bare keyword alone on its own
+# line. These five forms survive stripping untouched and each would
+# silently reinstate the "runner's transaction gets cut short" bug Fix B
+# closed -- so cmd_apply must refuse to apply a file containing any of them,
+# rather than run it as if it were runner-safe.
+_UNSTRIPPABLE_TXN_CONTROL_FORMS = [
+    pytest.param("BEGIN TRANSACTION;\nSELECT 1;\n", id="begin_transaction"),
+    pytest.param("SELECT 1;\nCOMMIT WORK;\n", id="commit_work"),
+    pytest.param(
+        "START TRANSACTION ISOLATION LEVEL SERIALIZABLE;\nSELECT 1;\n",
+        id="start_transaction_isolation_level",
+    ),
+    pytest.param(
+        "ALTER TABLE t ADD COLUMN IF NOT EXISTS x INT;\nEND;\n",
+        id="bare_end_commit_synonym",
+    ),
+    pytest.param("BEGIN; SELECT 1; COMMIT;\n", id="multiple_statements_one_line"),
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("migration_sql", _UNSTRIPPABLE_TXN_CONTROL_FORMS)
+async def test_apply_refuses_residual_transaction_control(
+    tmp_path, monkeypatch, migration_sql
+):
+    (tmp_path / "002_bad.sql").write_bytes(migration_sql.encode("utf-8"))
+    monkeypatch.setattr(migrate, "MIGRATIONS_DIR", tmp_path)
+    monkeypatch.setattr(migrate, "discover", lambda: discover(tmp_path))
+
+    conn = _FakeConn()
+    result = await migrate.cmd_apply(conn)
+
+    assert result == 1
+    # The migration's own SQL must never have reached conn.execute(): the
+    # refusal is a pre-flight check before anything is applied. Only the
+    # ensure_ledger() DDL call is allowed through.
+    assert conn.executed_sql == [migrate.LEDGER_DDL]
+    assert conn.txn_events == []
+
+
+def test_residual_transaction_control_reports_correct_line_number():
+    sql = "ALTER TABLE t ADD COLUMN IF NOT EXISTS x INT;\nEND;\n"
+    violation = migrate._residual_transaction_control(sql)
+    assert violation is not None
+    line_no, stmt_text = violation
+    assert line_no == 2
+    assert stmt_text == "END;"
+
+
+@pytest.mark.asyncio
+async def test_apply_still_applies_the_real_002_cleanly(monkeypatch):
+    """002_api_key_hashing.sql is the actual file that motivated Fix B: it
+    wraps itself in BEGIN;/COMMIT; (stripped) and contains a genuine
+    DO $$ BEGIN ... END $$; block (must survive both stripping and the new
+    residual-transaction-control refusal). Run cmd_apply against the real
+    migrations directory to prove the refusal check has no false positive
+    on it."""
+    conn = _FakeConn()
+    result = await migrate.cmd_apply(conn)
+
+    assert result == 0
+    applied_names = [call[1][0] for call in conn.executed_calls
+                     if "INSERT INTO schema_migrations" in call[0]]
+    assert "002_api_key_hashing.sql" in applied_names

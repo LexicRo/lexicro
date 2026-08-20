@@ -105,6 +105,86 @@ def _strip_transaction_control(sql: str) -> str:
     return "\n".join(out_lines)
 
 
+# _TXN_CONTROL_LINE above only catches a bare keyword alone on its own line.
+# It deliberately does NOT catch `BEGIN TRANSACTION;`, `COMMIT WORK;`,
+# `START TRANSACTION ISOLATION LEVEL ...;`, the bare `END;` COMMIT synonym,
+# or multiple transaction-control statements packed onto one line (e.g.
+# `BEGIN; SELECT 1; COMMIT;`) -- widening _strip_transaction_control's
+# matching to silently remove those too would be more dangerous than leaving
+# them, since a stripper bug corrupts SQL without telling anyone. Instead,
+# _residual_transaction_control re-scans the ALREADY-STRIPPED text for any
+# of those broader forms and cmd_apply refuses to apply the file if it finds
+# one, rather than proceeding as if the file were runner-safe.
+_TXN_CONTROL_STATEMENT = re.compile(
+    r"^(BEGIN(?:\s+(?:TRANSACTION|WORK))?"
+    r"|COMMIT(?:\s+(?:TRANSACTION|WORK))?"
+    r"|ROLLBACK(?:\s+(?:TRANSACTION|WORK))?"
+    r"|START\s+TRANSACTION(?:\s+.*)?"
+    r"|END)\s*;$",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def _residual_transaction_control(sql: str) -> tuple[int, str] | None:
+    """Find a top-level transaction-control statement remaining in `sql`
+    after _strip_transaction_control has already removed the bare-line
+    forms. Returns (line_no, statement_text) for the first one found, in
+    file order, or None if the file is clean.
+
+    Tracks `$tag$ ... $tag$` dollar-quoted regions the same way the
+    stripper does, but character-by-character rather than line-by-line: a
+    region that opens or closes partway through a line (002's own
+    `END $$;` does exactly this -- the `END` belongs to the PL/pgSQL block
+    and the closing `$$` lands on the same line) needs the boundary
+    resolved mid-line, not at line granularity, or that `END` would be
+    misread as the runner-territory COMMIT synonym.
+
+    Statements are split on top-level `;` characters. This is not a full
+    SQL parser -- a `;` inside a comment or an ordinary string literal
+    would be misread as a statement boundary -- but that is out of scope
+    here: the only content ever meant to hide a `;` from this scan is a
+    dollar-quoted block, which is handled.
+    """
+    in_dollar_quote: str | None = None
+    line_no = 1
+    stmt_start_line = 1
+    buf: list[str] = []
+    i = 0
+    n = len(sql)
+    while i < n:
+        ch = sql[i]
+        if in_dollar_quote is not None:
+            if sql.startswith(in_dollar_quote, i):
+                i += len(in_dollar_quote)
+                in_dollar_quote = None
+                continue
+            if ch == "\n":
+                line_no += 1
+            i += 1
+            continue
+        m = _DOLLAR_QUOTE_TAG.match(sql, i)
+        if m:
+            in_dollar_quote = m.group(0)
+            i += len(in_dollar_quote)
+            continue
+        if ch == ";":
+            buf.append(ch)
+            stmt = "".join(buf).strip()
+            if stmt and _TXN_CONTROL_STATEMENT.match(stmt):
+                return stmt_start_line, stmt
+            buf = []
+            i += 1
+            stmt_start_line = line_no
+            continue
+        if ch == "\n":
+            line_no += 1
+            if not "".join(buf).strip():
+                stmt_start_line = line_no
+        buf.append(ch)
+        i += 1
+    return None
+
+
 async def ensure_ledger(conn) -> None:
     """Create the ledger table. Only the writing commands call this."""
     await conn.execute(LEDGER_DDL)
@@ -153,6 +233,14 @@ async def cmd_apply(conn) -> int:
         print("Nothing to apply.")
         return 0
 
+    # Read and strip every pending file up front, and refuse the whole batch
+    # if any of them still contains transaction control after stripping.
+    # Checked before anything is applied -- same fail-fast shape as the
+    # mismatch check above -- because a file the stripper can't fully
+    # neutralise is exactly the case that silently steals the ledger INSERT
+    # out of the runner's transaction (see _strip_transaction_control).
+    # Refusing loudly here is this ADR's whole philosophy.
+    to_apply: dict[str, tuple[bytes, str]] = {}
     for name in state.pending:
         raw = (MIGRATIONS_DIR / name).read_bytes()
         # checksum() always hashes the RAW bytes, unmodified. Only the text
@@ -160,6 +248,20 @@ async def cmd_apply(conn) -> int:
         # transaction control -- what gets hashed and what gets run are
         # deliberately different things from this point on.
         executable = _strip_transaction_control(raw.decode("utf-8"))
+        violation = _residual_transaction_control(executable)
+        if violation is not None:
+            line_no, stmt_text = violation
+            print(f"ERROR: {name} line {line_no}: {stmt_text!r}")
+            print(
+                "Migration files must not contain their own transaction "
+                "control; the runner wraps each file in exactly one "
+                "transaction. Refusing to apply."
+            )
+            return 1
+        to_apply[name] = (raw, executable)
+
+    for name in state.pending:
+        raw, executable = to_apply[name]
         print(f"applying {name} ...", flush=True)
         # One transaction per migration: a failure at N leaves 1..N-1 recorded
         # and the database consistent, rather than a half-applied batch.
