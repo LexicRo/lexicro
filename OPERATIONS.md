@@ -272,25 +272,35 @@ without re-running anything:
 ```bash
 git pull
 docker compose build api                                             # 1. the script lives in the NEW image
-docker compose run --rm api python scripts/migrate.py --status       # 2. confirm: empty ledger, 3 pending
-docker compose exec db psql -U postgres -d lexicro                   # 3. inspect the actual schema
-docker compose run --rm api python scripts/migrate.py --baseline 003 # 4. stamp -- use the number the inspection gave you
-./deploy.sh                                                          # 5. only now
+docker compose exec -T db pg_dump -U postgres lexicro     | gzip > /root/pre-adoption.sql.gz                               # 2. BEFORE any compose command touches db
+docker compose run --rm api python scripts/migrate.py --status       # 3. confirm: empty ledger, 3 pending
+docker compose exec db psql -U postgres -d lexicro                   # 4. inspect the actual schema
+docker compose run --rm api python scripts/migrate.py --baseline 003 # 5. stamp -- use the number the inspection gave you
+./deploy.sh                                                          # 6. only now
 ```
+
+**Take the dump at step 2, not later.** Dropping the `initdb.d` mount changed
+the `db` service's compose config hash, so the **first** command that brings
+`db` up under the new config recreates the container — and that is step 3's
+`docker compose run`, which starts `db` as a dependency, not `./deploy.sh` at
+the end. Verified on production 2026-08-20: `db` had been recreated by the
+time the schema inspection ran. The data is safe regardless — it lives in the
+named `postgres_data` volume and the removed mount was read-only and consumed
+only at initdb — but a dump taken after the recreation protects nothing.
 
 **The build in step 1 is not optional** — the currently-running image does not
 contain `scripts/migrate.py`. And the order matters: deploying the gated image
 before stamping leaves an empty ledger, so the API sees three missing
 migrations and crash-loops until someone stamps it.
 
-**Step 2 tells you the ledger is empty. It does not tell you what to baseline
+**Step 3 tells you the ledger is empty. It does not tell you what to baseline
 to.** `--status` diffs the ledger table against the `migrations/` directory —
 filenames and checksums only. It never looks at a table or a column, so
 "empty ledger, 3 pending" is what it prints for *any* unbaselined database,
 regardless of what schema that database actually has. The command that can be
 wrong here is `--baseline`, and nothing about `--status` can catch it.
 
-**Step 3 is the check that actually matters.** Look at what the database has
+**Step 4 is the check that actually matters.** Look at what the database has
 and match it against the table below — derived from what each migration file
 creates, not from an assumption:
 
@@ -308,28 +318,28 @@ In `psql`:
 ```
 
 Baselining too high silently skips a migration that will then never run —
-that is exactly what step 3 exists to prevent. `--status` cannot see it;
+that is exactly what step 4 exists to prevent. `--status` cannot see it;
 only looking at the schema itself can.
 
-**Step 5 recreates the `db` container — take a dump first.** This branch
-drops the `./init.sql:/docker-entrypoint-initdb.d/init.sql` bind mount from
-the `db` service (migrations replaced it, see ADR-0023). Compose keys
-recreation off the service config hash, so the first `docker compose up -d
-db` after this change — the one inside `deploy.sh`, i.e. step 5 above —
-recreates the `db` container. The data itself is safe: it lives in the named
-`postgres_data` volume, and the mount that was removed was a read-only bind
-consumed only at `initdb`. Take a dump before running step 5 anyway, using
-the same `pg_dump` invocation as the "Recreating the db container" section
-above:
+**The `db` container is recreated once, at step 3 — which is why the dump is
+step 2.** This branch drops the `./init.sql:/docker-entrypoint-initdb.d/init.sql`
+bind mount from the `db` service (migrations replaced it, see ADR-0023).
+Compose keys recreation off the service config hash, so the **first** command
+that brings `db` up under the new config recreates it. That is step 3's
+`docker compose run --rm api …`, which starts `db` as a dependency — **not**
+`./deploy.sh` at the end, which is where an earlier draft of this runbook put
+it. Corrected 2026-08-20 after observing the real sequence on production: by
+the time the schema inspection ran, `db` had already been recreated.
 
-```bash
-docker-compose exec -T db pg_dump -U postgres lexicro | gzip > /root/pre-change.sql.gz
-```
+The data itself is safe: it lives in the named `postgres_data` volume, and the
+mount that was removed was a read-only bind consumed only at `initdb`. That was
+confirmed in production on 2026-08-20 — every table and row was intact when
+queried immediately after the recreation. A dump is still worth taking, but it
+has to be taken *before* step 3 to be worth anything.
 
-Expect a short API blip when the container bounces: `app/database.py`
-builds its SQLAlchemy engine without `pool_pre_ping`, so the running API's
-already-pooled connections go stale across the restart until the API's own
-container is recreated a moment later in the same step.
+Expect a short API blip when the container bounces: `app/database.py` builds
+its SQLAlchemy engine without `pool_pre_ping`, so the previously-running API's
+pooled connections go stale until it is itself recreated at step 6.
 
 ### When something goes wrong
 
