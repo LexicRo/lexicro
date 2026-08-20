@@ -1,4 +1,4 @@
--- 002_key_requests.sql
+-- 003_key_requests.sql
 -- Pending, unverified API-key requests. A row here is NOT a key: the real key is
 -- only minted at verify-time and inserted into api_keys. This table holds just
 -- enough to (a) email a verification link and (b) mint the right key on click.
