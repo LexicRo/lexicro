@@ -111,7 +111,7 @@ is given above, and is served publicly at
 
 ## Acknowledgements
 
-**Alex — [voroave.ro](https://voroave.ro)** — for pointing out DEXonline's
+**Alex Popescu — [voroave.ro](https://voroave.ro)** — for pointing out DEXonline's
 official dataset dumps at [dexonline.ro/tools](https://dexonline.ro/tools),
 along with [dexonline.ro/surse](https://dexonline.ro/surse) and
 [clre.solirom.ro](https://clre.solirom.ro/). voroave.ro is his own project: an
