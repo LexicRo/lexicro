@@ -1,0 +1,24 @@
+# LexicRo scheduled jobs -- the single source of truth for this host's crontab.
+#
+# Install:  sudo crontab /opt/lexicro/scripts/crontab
+# Verify:   sudo crontab -l
+#
+# NOTE: `crontab <file>` REPLACES root's entire crontab. As of 2026-08-20 these
+# two jobs are the only entries; check `sudo crontab -l` before installing in
+# case something else has been added by hand since.
+#
+# Neither line carries a secret. backup.sh reads HEALTHCHECK_URL from
+# /opt/lexicro/.env, so this file is safe to paste into an issue or a runbook.
+# That was not always true -- the ping URL used to sit inline on the backup line
+# and leaked twice by being copied around.
+#
+# cron runs with a minimal PATH: docker is called by absolute path below, and
+# backup.sh sets its own PATH for the same reason.
+
+# Database dump, verification, and request_log retention. 03:17 -- an odd minute
+# so it does not collide with everything else on the host firing at exactly 03:00.
+17 3 * * * /bin/bash /opt/lexicro/scripts/backup.sh >> /var/log/lexicro-backup.log 2>&1
+
+# Purge expired, unconsumed key requests. Deliberately after the backup, so each
+# night's dump captures the pre-purge state.
+0 4 * * * cd /opt/lexicro && /usr/bin/docker compose exec -T api python scripts/purge_key_requests.py >> /var/log/lexicro-purge.log 2>&1

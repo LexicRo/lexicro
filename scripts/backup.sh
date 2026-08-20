@@ -2,14 +2,18 @@
 #
 # Daily database backup + log retention for LexicRo.
 #
-# Install:
-#   sudo install -m 755 scripts/backup.sh /usr/local/bin/lexicro-backup
+# Install: nothing to copy. cron runs this in place from the checkout at
+# /opt/lexicro/scripts/. Create the dump directory once:
 #   sudo mkdir -p /var/backups/lexicro
-#   sudo crontab -e     # see CRON below
 #
-# CRON (03:17 daily -- an odd minute so it does not collide with everything
-# else on the host that runs at exactly 03:00):
-#   17 3 * * * /usr/local/bin/lexicro-backup >> /var/log/lexicro-backup.log 2>&1
+# Schedule: scripts/crontab in this repo is the single source of truth --
+#   sudo crontab /opt/lexicro/scripts/crontab
+# It runs at 03:17, an odd minute so it does not collide with everything else
+# on the host that fires at exactly 03:00.
+#
+# This header used to describe installing to /usr/local/bin/lexicro-backup and
+# carried a third, different cron line. That install was never done and the host
+# has always run the script from the checkout; both are corrected here.
 #
 # Design notes:
 #   * `set -euo pipefail` so a failure stops the script instead of quietly
@@ -42,6 +46,17 @@ export PATH="/usr/local/bin:/usr/bin:/bin:${PATH}"
 
 log() { printf '%s  %s\n' "$(date -u '+%Y-%m-%d %H:%M:%SZ')" "$*"; }
 die() { log "ERROR: $*"; exit 1; }
+
+# Read one KEY=value out of a .env file. Deliberately not `source`: .env is
+# consumed by docker compose, not bash, so sourcing it under `set -e` would let
+# one stray character in an unrelated variable abort the backup. Takes the last
+# occurrence, strips a trailing CR and one layer of surrounding quotes.
+get_env_value() {
+    sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*//p" "$2" \
+        | tail -n 1 \
+        | tr -d '\r' \
+        | sed -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'\$/\1/"
+}
 
 command -v docker-compose >/dev/null 2>&1 || die "docker-compose not found on PATH"
 cd "$COMPOSE_DIR" || die "cannot cd to $COMPOSE_DIR"
@@ -97,6 +112,19 @@ log "request_log: pruned ${PRUNED:-0} row(s) older than ${LOG_RETENTION_DAYS} da
 # If HEALTHCHECK_URL is set, ping it on success. If the backup stops running --
 # cron broken, disk full, host down -- the service notices the silence and
 # emails you. A backup you never check is a backup you do not have.
+#
+# The URL is a capability: anyone holding it can mark this check healthy, which
+# would mask a backup that had silently stopped. It therefore lives in .env with
+# the other secrets, NOT inline in the crontab line -- a crontab line gets read
+# aloud, pasted into issues and copied into runbooks, and this one leaked twice
+# that way before it was moved here.
+#
+# An env var set by the caller still wins, so an older inline-crontab line keeps
+# working unchanged.
+if [ -z "${HEALTHCHECK_URL:-}" ] && [ -r "${COMPOSE_DIR}/.env" ]; then
+    HEALTHCHECK_URL="$(get_env_value HEALTHCHECK_URL "${COMPOSE_DIR}/.env")"
+fi
+
 if [ -n "${HEALTHCHECK_URL:-}" ]; then
     curl -fsS -m 10 --retry 3 "$HEALTHCHECK_URL" >/dev/null 2>&1 \
         && log "pinged healthcheck" \

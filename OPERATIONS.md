@@ -79,18 +79,28 @@ sudo bash /opt/lexicro/scripts/backup.sh
 ls -lh /var/backups/lexicro/
 ```
 
-Then schedule it:
+Then schedule it. **`scripts/crontab` in the repo is the single source of truth**
+for this host's schedule — install it rather than hand-editing:
 
 ```bash
-sudo crontab -e
+sudo crontab -l                              # check nothing else is scheduled first
+sudo crontab /opt/lexicro/scripts/crontab
+sudo crontab -l                              # confirm both jobs are in
 ```
 
-```cron
-17 3 * * * /bin/bash /opt/lexicro/scripts/backup.sh >> /var/log/lexicro-backup.log 2>&1
-```
+`crontab <file>` replaces the whole crontab, which is the point — the host's
+schedule then matches the repo exactly, and a rebuild reproduces it. It also
+means anything added by hand and never committed is discarded, so read the
+first `crontab -l` before running the second command.
 
-An odd minute, deliberately: everything on a default Linux box runs at exactly
-03:00.
+The backup runs at 03:17. An odd minute, deliberately: everything on a default
+Linux box runs at exactly 03:00.
+
+Until 2026-08-20 this schedule existed **only** in root's crontab on the live
+host, and three different versions of the backup line appeared across this file
+and `backup.sh`'s header — none matching what was actually running. Rebuilding
+the box from the repo produced a server with no backups and no purge, and
+nothing in the repo revealed the omission.
 
 **Prove a restore works.** An untested backup is a hope, not a backup:
 
@@ -128,15 +138,20 @@ https://api.lexicro.com/health
 
 Five-minute interval, email alert. Five minutes of setup.
 
-**Backups still running.** Create a check at healthchecks.io (free), then:
+**Backups still running.** Create a check at healthchecks.io (free), then put
+its ping URL in `/opt/lexicro/.env` — **not** in the crontab line:
 
 ```bash
-sudo crontab -e
+echo 'HEALTHCHECK_URL=https://hc-ping.com/your-uuid' >> /opt/lexicro/.env
+sudo bash /opt/lexicro/scripts/backup.sh    # confirm: "pinged healthcheck"
 ```
 
-```cron
-17 3 * * * HEALTHCHECK_URL=https://hc-ping.com/your-uuid /bin/bash /opt/lexicro/scripts/backup.sh >> /var/log/lexicro-backup.log 2>&1
-```
+`backup.sh` reads that one key out of `.env` at run time, so the scheduled line
+in `scripts/crontab` carries no secret and stays safe to paste anywhere. The URL
+is a capability — anyone holding it can mark the check healthy and mask a backup
+that has silently stopped — and it leaked twice while it lived inline on the
+cron line. An env var set by the caller still takes precedence, so an older
+inline crontab line keeps working if you have one.
 
 The script pings on success. If backups stop — cron broken, disk full, host
 gone — the silence is what triggers the alert. Failure modes that produce no
