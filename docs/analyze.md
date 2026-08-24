@@ -4,10 +4,13 @@ Given Romanian text, returns for every token **in context**: its lemma, part of
 speech, and morphological features.
 
 The distinction that matters is *in context*. A dictionary can tell you that
-*era* is either the imperfect of **a fi** ("to be") or the definite singular of
-**eră** ("era, epoch"). It cannot tell you which one you are looking at.
+*sare* is either the noun **sare** ("salt") or the third-person present of
+**sări** ("to jump"). It cannot tell you which one you are looking at.
 `/analyze` can, because a language model resolves the reading from the sentence
-and the dictionary then supplies the lemma.
+and the dictionary then supplies the lemma:
+
+- *Pune **sare** în mâncare.* → `sare`, NOUN
+- *Pisica **sare** pe masă.* → `sări`, VERB
 
 ---
 
@@ -205,14 +208,20 @@ a different lemma.
 ## Worked example: why context matters
 
 ```json
-{"text": "Era obosit după drum."}
+{"text": "Pune sare în mâncare."}
 ```
 
-`Era` → lemma **`fi`**, `AUX`, `Tense=Imp` — the copula.
+`sare` → lemma **`sare`**, `NOUN` — the substance.
 
-The same word form is also the noun *eră* ("epoch"). No lexicon can choose
-between them; the choice depends on the sentence. This is the whole reason the
-endpoint exists rather than a dictionary lookup.
+```json
+{"text": "Pisica sare pe masă."}
+```
+
+`sare` → lemma **`sări`**, `VERB` — the action.
+
+Same four letters, two different lemmas. No lexicon can choose between them;
+the choice depends on the sentence. This is the whole reason the endpoint
+exists rather than a dictionary lookup.
 
 Forms like this are not rare: **15,822 of the lexicon's 352,004 forms (4.49%)
 are lemma-ambiguous** — the correct lemma genuinely depends on the reading,
