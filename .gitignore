@@ -17,3 +17,5 @@ __pycache__/
 
 # Docker
 postgres_data/
+# subagent-driven-development scratch (review packages, briefs)
+.superpowers/
