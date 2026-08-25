@@ -498,3 +498,24 @@ def test_transform_derives_the_negative_imperative_2sg_for_further_corrupted_ver
         assert forbidden not in second_person_singular["form"]
         assert second_person_singular["form"] == f"nu {verb}"
         assert second_person_singular["source"] == "derived"
+
+
+from app.services.verbecc_service import EmptyVerbError, conjugate_verb  # noqa: E402
+
+
+def test_conjugate_verb_rejects_empty_input_before_calling_verbecc():
+    with pytest.raises(EmptyVerbError):
+        conjugate_verb("")
+
+
+def test_conjugate_verb_rejects_whitespace_and_a_bare_prefix():
+    with pytest.raises(EmptyVerbError):
+        conjugate_verb("   ")
+    with pytest.raises(EmptyVerbError):
+        conjugate_verb("a ")
+
+
+def test_conjugate_verb_still_raises_plain_value_error_for_an_unknown_verb():
+    with pytest.raises(ValueError) as excinfo:
+        conjugate_verb("asdfgh")
+    assert not isinstance(excinfo.value, EmptyVerbError)
