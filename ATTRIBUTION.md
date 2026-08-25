@@ -129,9 +129,9 @@ characters to Romanian's comma-below diacritics; it serves the `infinitiv` mood
 from verbecc's own `verb.infinitive` field rather than a corrupted template
 output, for the small set of verbs (the `face` family) where that template is
 corrupted; and it composes the negative imperative's second-person-singular form
-as `nu` + infinitive, rather than passing through verbecc's own value, for the
-small set of verbs whose template corrupts that form too (`face`, `avea`, `vrea`
-and their families). Every other form is verbecc's own, unmodified.
+as `nu` + infinitive for every verb that has such a form, applying the invariant
+paradigm rather than trusting corrupted per-verb entries; this is skipped only
+where verbecc records the form non-existent. Every other form is verbecc's own, unmodified.
 
 - **Resource:** [verbecc](https://github.com/bretttolbert/verbecc) 2.0.2
 - **Author:** Brett Tolbert
