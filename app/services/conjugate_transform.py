@@ -184,7 +184,7 @@ def conditional_mood(infinitive: str, participle: str) -> dict[str, list[dict]]:
             {
                 "form": f"{aux} {infinitive}",
                 "pronoun": pronoun,
-                "feats": feats,
+                "feats": dict(feats),
                 "source": "derived",
             }
             for pronoun, aux, feats in _CONDITIONAL
@@ -193,7 +193,7 @@ def conditional_mood(infinitive: str, participle: str) -> dict[str, list[dict]]:
             {
                 "form": f"{aux} fi {participle}",
                 "pronoun": pronoun,
-                "feats": feats,
+                "feats": dict(feats),
                 "source": "derived",
             }
             for pronoun, aux, feats in _CONDITIONAL

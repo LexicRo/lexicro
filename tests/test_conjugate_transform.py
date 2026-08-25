@@ -273,6 +273,17 @@ def test_conditional_normalises_its_inputs():
     assert mood["perfect"][0]["form"] == "a\u0219 fi min\u021bit"
 
 
+def test_conditional_prezent_feats_do_not_share_identity_between_pronouns():
+    mood = conditional_mood("merge", "mers")
+    assert mood["prezent"][0]["feats"] is not mood["prezent"][1]["feats"]
+
+
+def test_conditional_feats_do_not_share_identity_between_prezent_and_perfect():
+    mood = conditional_mood("merge", "mers")
+    for i in range(len(mood["prezent"])):
+        assert mood["prezent"][i]["feats"] is not mood["perfect"][i]["feats"]
+
+
 def test_notes_are_general_first_then_specific():
     result = notes()
     assert result[0]["scope"] == "all"
@@ -298,6 +309,11 @@ def test_notes_are_a_fresh_list_each_call():
     first = notes()
     first.append({"scope": "bogus", "code": "x", "message": "y"})
     assert len(notes()) == 2
+    # the list being fresh is not enough on its own: `return list(_NOTES)`
+    # would pass the assertion above while still handing out the SAME dict
+    # objects held in _NOTES, letting a caller corrupt the constant with
+    # `notes()[0]["message"] = "x"`. The dicts must be fresh too.
+    assert notes()[0] is not notes()[0]
 
 
 def test_note_text_uses_comma_below_diacritics_only():
