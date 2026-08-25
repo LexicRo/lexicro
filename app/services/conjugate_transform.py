@@ -242,3 +242,86 @@ _NOTES: tuple[dict, ...] = (
 def notes() -> list[dict]:
     """A fresh copy of the disclosure, so a caller cannot mutate the constant."""
     return [dict(note) for note in _NOTES]
+
+
+_IMPERATIVE_MOOD = "imperativ"
+_CONDITIONAL_MOOD = "condi\u021bional"
+
+
+def transform(raw: dict, input_text: str) -> dict:
+    """verbecc's raw conjugation dict as LexicRo's documented response."""
+    verb = raw["verb"]
+    infinitive = normalise(verb["infinitive"])
+
+    moods: dict[str, dict[str, list[dict]]] = {}
+    for mood_name, tenses in raw["moods"].items():
+        mood = normalise(mood_name)
+        moods[mood] = {}
+        for tense_name, entries in tenses.items():
+            tense = normalise(tense_name)
+            if mood == _IMPERATIVE_MOOD:
+                moods[mood][tense] = imperative_entries(entries)
+            else:
+                moods[mood][tense] = [
+                    expanded for entry in entries for expanded in expand(entry)
+                ]
+
+    # The `infinitiv` mood is generated from the template, and one Romanian
+    # template is corrupted with a Spanish string -- `a face` and its family
+    # come out as "fudrir;odrir". `verb.infinitive` is the looked-up lemma and
+    # is intact, so it serves the same datum from the same source.
+    #
+    # This is not a correction of verbecc's Romanian. LexicRo does not make
+    # those. It is choosing the uncorrupted of two copies verbecc itself
+    # supplies, which is why `source` stays "verbecc".
+    moods["infinitiv"] = {
+        "afirmativ": [
+            {
+                "form": infinitive,
+                "pronoun": None,
+                "feats": {},
+                "source": "verbecc",
+            }
+        ]
+    }
+
+    # The `contraf:ace` template is corrupted in a second place besides the
+    # `infinitiv` mood: verbecc's `imperativ.negativ` 2sg entry is generated
+    # from the same broken pipeline, so `a face` and its family come out as
+    # "nu fudrir;odrir" there too. The same defect also hits `a avea` ("nu
+    # aai") and `a vrea` ("nu eni") via different corrupted templates.
+    #
+    # Romanian's negative imperative 2sg is invariantly "nu" + infinitive --
+    # there is no verb where it legitimately differs from that paradigm --
+    # so composing it substitutes no linguistic judgement. `source` is
+    # "derived" rather than "verbecc" (matching `conditional_mood`, which
+    # composes the same auxiliary/particle-plus-infinitive shape), even
+    # though the composed value is byte-identical to verbecc's own for most
+    # verbs: understating our source's authority is the safe direction.
+    #
+    # 2pl is NOT touched here. It is a different paradigm ("nu" + the plural
+    # imperative, not "nu" + infinitive) and is not part of this ruling.
+    for entry in moods[_IMPERATIVE_MOOD]["negativ"]:
+        if entry["pronoun"] == "tu":
+            entry["form"] = f"nu {infinitive}"
+            entry["source"] = "derived"
+
+    participle = raw["moods"]["participiu"]["participiu"][0]["c"][0]
+    moods[_CONDITIONAL_MOOD] = conditional_mood(infinitive, participle)
+
+    return {
+        "input": input_text,
+        "notes": notes(),
+        "verb": {
+            "infinitive": infinitive,
+            # `predicted` is verbecc's word for "I did not know this verb, so I
+            # guessed a template". Promoted out of metadata and renamed,
+            # because it is the fabrication signal a caller most needs.
+            "provenance": "predicted" if verb.get("predicted") else "template",
+            # An upstream identifier, passed through verbatim -- cedillas and
+            # all. It is what a support conversation about a wrong conjugation
+            # turns on, and normalising it would break that.
+            "template": verb.get("template"),
+        },
+        "moods": moods,
+    }

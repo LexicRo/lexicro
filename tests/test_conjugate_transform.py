@@ -1,6 +1,10 @@
 """Unit tests for the pure verbecc-to-contract transformation."""
 
+import json
+import logging
+
 import pytest
+from verbecc import CompleteConjugator
 
 from app.services.conjugate_transform import (
     conditional_mood,
@@ -9,8 +13,17 @@ from app.services.conjugate_transform import (
     normalise,
     notes,
     strip_pronoun,
+    transform,
     ud_feats,
 )
+
+logging.getLogger("verbecc").setLevel(logging.ERROR)
+
+_conjugator = CompleteConjugator(lang="ro")
+
+
+def raw(verb: str) -> dict:
+    return json.loads(_conjugator.conjugate(verb).to_json())
 
 
 def test_normalise_replaces_t_cedilla():
@@ -320,3 +333,168 @@ def test_note_text_uses_comma_below_diacritics_only():
     for note in notes():
         assert "\u015f" not in note["message"]
         assert "\u0163" not in note["message"]
+
+
+def test_transform_echoes_the_input_verbatim():
+    result = transform(raw("merge"), "a merge")
+    assert result["input"] == "a merge"
+
+
+def test_transform_reports_template_provenance_for_a_known_verb():
+    result = transform(raw("merge"), "merge")
+    assert result["verb"]["provenance"] == "template"
+    assert result["verb"]["infinitive"] == "merge"
+    assert result["verb"]["template"] == "concu:rge"
+
+
+def test_transform_reports_predicted_provenance_for_an_invented_verb():
+    result = transform(raw("xyzzyti"), "xyzzyti")
+    assert result["verb"]["provenance"] == "predicted"
+
+
+def test_transform_uses_ud_vocabulary_not_single_letters():
+    result = transform(raw("merge"), "merge")
+    first = result["moods"]["indicativ"]["prezent"][0]
+    assert first == {
+        "form": "merg",
+        "pronoun": "eu",
+        "feats": {"Person": "1", "Number": "Sing"},
+        "source": "verbecc",
+    }
+
+
+def test_transform_includes_the_synthesised_conditional():
+    result = transform(raw("merge"), "merge")
+    prezent = result["moods"]["condi\u021bional"]["prezent"]
+    assert prezent[0]["form"] == "a\u0219 merge"
+    assert prezent[0]["source"] == "derived"
+    assert result["moods"]["condi\u021bional"]["perfect"][0]["form"] == "a\u0219 fi mers"
+
+
+def test_transform_filters_both_imperative_tenses():
+    result = transform(raw("merge"), "merge")
+    assert len(result["moods"]["imperativ"]["imperativ"]) == 2
+    assert len(result["moods"]["imperativ"]["negativ"]) == 2
+
+
+def test_transform_serves_the_clean_infinitive_for_the_face_family():
+    """verbecc's `infinitiv` mood for `a face` is a corrupted Spanish string.
+
+    conjugations-ro.xml:7180 holds "udrir;odrir" in the contraf:ace template.
+    `verb.infinitive` is intact, so that is what the mood serves -- still
+    verbecc's own value for the same datum, hence source "verbecc".
+    """
+    for verb in ("face", "desface", "reface"):
+        result = transform(raw(verb), verb)
+        serialised = json.dumps(result, ensure_ascii=False)
+        assert "fudrir" not in serialised, f"{verb} leaked the corrupt template"
+        assert result["moods"]["infinitiv"]["afirmativ"][0]["form"] == verb
+        assert result["moods"]["infinitiv"]["afirmativ"][0]["source"] == "verbecc"
+
+
+def test_transform_does_not_derive_the_conditional_from_the_corrupt_infinitive():
+    result = transform(raw("face"), "face")
+    assert result["moods"]["condi\u021bional"]["prezent"][0]["form"] == "a\u0219 face"
+
+
+def test_transform_gives_a_null_pronoun_to_moods_that_take_none():
+    result = transform(raw("merge"), "merge")
+    for mood, tense in (
+        ("infinitiv", "afirmativ"),
+        ("gerunziu", "gerunziu"),
+        ("participiu", "participiu"),
+    ):
+        entry = result["moods"][mood][tense][0]
+        assert entry["pronoun"] is None
+        assert entry["feats"] == {}
+
+
+def test_transform_emits_no_legacy_cedilla_anywhere():
+    for verb in ("merge", "min\u021bi", "face", "g\u0103si"):
+        result = transform(raw(verb), verb)
+        # verb.template is an upstream identifier, not Romanian prose, and is
+        # deliberately passed through with verbecc's spelling. Drop it before
+        # asserting on everything else.
+        result["verb"]["template"] = ""
+        body = json.dumps(result, ensure_ascii=False)
+        assert "\u015f" not in body, f"s-cedilla leaked for {verb}"
+        assert "\u0163" not in body, f"t-cedilla leaked for {verb}"
+
+
+def test_transform_keeps_the_template_identifier_verbatim():
+    # dezmi:n\u0163i is verbecc's name for the template. Normalising it would
+    # produce a string that matches no verbecc template.
+    result = transform(raw("min\u021bi"), "min\u021bi")
+    assert result["verb"]["template"] == "dezmi:n\u0163i"
+
+
+def test_transform_attaches_the_notes():
+    result = transform(raw("merge"), "merge")
+    assert [n["code"] for n in result["notes"]] == [
+        "upstream_unverified",
+        "imperative_known_errors",
+    ]
+
+
+def test_transform_drops_verbecc_internals():
+    result = transform(raw("merge"), "merge")
+    assert "lang" not in result["verb"]
+    assert "stem" not in result["verb"]
+    assert "translation_en" not in result["verb"]
+    assert "predicted" not in result["verb"]
+
+
+def test_transform_keeps_both_forms_of_avea_in_the_present():
+    result = transform(raw("avea"), "avea")
+    third_sing = [
+        e
+        for e in result["moods"]["indicativ"]["prezent"]
+        if e["pronoun"] == "el"
+    ]
+    assert [e["form"] for e in third_sing] == ["a", "are"]
+
+
+def test_transform_derives_the_negative_imperative_2sg_for_the_face_family():
+    """The `contraf:ace` template is corrupted in two places, not one: the
+    `infinitiv` mood and `imperativ.negativ` 2sg both come out as
+    "fudrir;odrir" (see the task-8 report). Romanian's negative imperative
+    2sg is invariantly "nu" + infinitive for every verb, so it is composed
+    the same way the `infinitiv` mood is served, and marked "derived" per
+    the ruling -- matching `conditional_mood`'s provenance for the same
+    auxiliary/particle-plus-infinitive shape.
+
+    2pl is untouched: verbecc's own value for this family is correct, and
+    the ruling scopes the fix to 2sg only.
+    """
+    for verb in ("face", "desface", "reface"):
+        result = transform(raw(verb), verb)
+        negativ = result["moods"]["imperativ"]["negativ"]
+        second_person_singular = [e for e in negativ if e["pronoun"] == "tu"][0]
+        second_person_plural = [e for e in negativ if e["pronoun"] == "voi"][0]
+        assert second_person_singular["form"] == f"nu {verb}"
+        assert second_person_singular["source"] == "derived"
+        assert second_person_plural["source"] == "verbecc"
+
+
+def test_transform_derives_the_negative_imperative_2sg_for_further_corrupted_verbs():
+    """`a avea` and `a vrea` carry the same two-site corruption pattern as
+    `a face`, via different broken templates: verbecc's raw
+    imperativ.negativ 2sg gives "nu aai" for avea and "nu eni" for vrea --
+    neither is a Romanian word. Composed from verb.infinitive instead, same
+    fix and provenance as the face family.
+
+    2pl is a separate, still-open defect for these two verbs specifically
+    (verbecc's 2pl value is *also* wrong here, unlike the face family) --
+    see the task-8 report. It is deliberately not touched by this test or
+    by the fix; the ruling scopes the fix to 2sg only.
+    """
+    for verb, forbidden in (("avea", "aai"), ("vrea", "eni")):
+        result = transform(raw(verb), verb)
+        second_person_singular = [
+            e
+            for e in result["moods"]["imperativ"]["negativ"]
+            if e["pronoun"] == "tu"
+        ][0]
+        assert forbidden not in second_person_singular["form"]
+        assert second_person_singular["form"] == f"nu {verb}"
+        assert second_person_singular["source"] == "derived"
