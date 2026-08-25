@@ -201,6 +201,44 @@ def conditional_mood(infinitive: str, participle: str) -> dict[str, list[dict]]:
     }
 
 
+_NONEXISTENT_FORM = "-"
+
+
+def compose_negative_imperative(negativ_entries: list[dict], infinitive: str) -> None:
+    """Overwrite the negative imperative 2sg entry in place, composed rather
+    than trusted from verbecc.
+
+    The `contraf:ace` template is corrupted in a second place besides the
+    `infinitiv` mood: verbecc's `imperativ.negativ` 2sg entry is generated
+    from the same broken pipeline, so `a face` and its family come out as
+    "nu fudrir;odrir" there too. The same defect also hits `a avea` ("nu
+    aai") and `a vrea` ("nu eni") via different corrupted templates.
+
+    Romanian's negative imperative 2sg is invariantly "nu" + infinitive --
+    there is no verb where it legitimately differs from that paradigm -- so
+    composing it substitutes no linguistic judgement. `source` is "derived"
+    rather than "verbecc" (matching `conditional_mood`, which composes the
+    same auxiliary/particle-plus-infinitive shape), even though the composed
+    value is byte-identical to verbecc's own for most verbs: understating our
+    source's authority is the safe direction.
+
+    This does NOT fire when verbecc's own value is the "-" sentinel --
+    verbecc's marker for "this verb has no such form" (267 of 6,864 verbs,
+    mostly impersonal ones like `a ninge`). "-" is not a corrupted form to
+    replace; it is correct, informative data, and composing "nu ninge" over
+    it would fabricate an imperative for a verb that has none, under
+    LexicRo's own `derived` signature. LexicRo's rule is to disclose
+    verbecc's defects, not invent past its gaps.
+
+    2pl is NOT touched here. It is a different paradigm ("nu" + the plural
+    imperative, not "nu" + infinitive) and is not part of this ruling.
+    """
+    for entry in negativ_entries:
+        if entry["pronoun"] == "tu" and entry["form"] != _NONEXISTENT_FORM:
+            entry["form"] = f"nu {infinitive}"
+            entry["source"] = "derived"
+
+
 # Source-quality disclosure, required on every successful response.
 #
 # LexicRo does not correct verbecc's Romanian -- it reports defects upstream
@@ -229,11 +267,13 @@ _NOTES: tuple[dict, ...] = (
         "scope": "imperativ",
         "code": "imperative_known_errors",
         "message": (
-            "The imperative has known residual errors in a small set of verbs "
-            "(e.g. 'merge' returns 'merge' where correct is 'mergi'), and for "
-            "some verbs the form varies by transitivity -- 'treci!' vs "
-            "'trece-m\u0103!' -- so a bare verb cannot determine which was "
-            "meant."
+            "The imperative has known residual errors in a small set of verbs. "
+            "Some are subtly wrong (e.g. 'merge' returns 'merge' where correct "
+            "is 'mergi'); a few are outright non-words -- e.g. 'a avea' "
+            "returns 'aai' (2sg) and 'ae\u021bi' (2pl), and 'a vrea' returns "
+            "'ino' (2sg) and 'eni\u021bi' (2pl). Separately, for some verbs "
+            "the form varies by transitivity -- 'treci!' vs 'trece-m\u0103!' "
+            "-- so a bare verb cannot determine which was meant."
         ),
     },
 )
@@ -285,26 +325,7 @@ def transform(raw: dict, input_text: str) -> dict:
         ]
     }
 
-    # The `contraf:ace` template is corrupted in a second place besides the
-    # `infinitiv` mood: verbecc's `imperativ.negativ` 2sg entry is generated
-    # from the same broken pipeline, so `a face` and its family come out as
-    # "nu fudrir;odrir" there too. The same defect also hits `a avea` ("nu
-    # aai") and `a vrea` ("nu eni") via different corrupted templates.
-    #
-    # Romanian's negative imperative 2sg is invariantly "nu" + infinitive --
-    # there is no verb where it legitimately differs from that paradigm --
-    # so composing it substitutes no linguistic judgement. `source` is
-    # "derived" rather than "verbecc" (matching `conditional_mood`, which
-    # composes the same auxiliary/particle-plus-infinitive shape), even
-    # though the composed value is byte-identical to verbecc's own for most
-    # verbs: understating our source's authority is the safe direction.
-    #
-    # 2pl is NOT touched here. It is a different paradigm ("nu" + the plural
-    # imperative, not "nu" + infinitive) and is not part of this ruling.
-    for entry in moods[_IMPERATIVE_MOOD]["negativ"]:
-        if entry["pronoun"] == "tu":
-            entry["form"] = f"nu {infinitive}"
-            entry["source"] = "derived"
+    compose_negative_imperative(moods[_IMPERATIVE_MOOD]["negativ"], infinitive)
 
     participle = raw["moods"]["participiu"]["participiu"][0]["c"][0]
     moods[_CONDITIONAL_MOOD] = conditional_mood(infinitive, participle)

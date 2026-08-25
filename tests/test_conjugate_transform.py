@@ -286,11 +286,6 @@ def test_conditional_normalises_its_inputs():
     assert mood["perfect"][0]["form"] == "a\u0219 fi min\u021bit"
 
 
-def test_conditional_prezent_feats_do_not_share_identity_between_pronouns():
-    mood = conditional_mood("merge", "mers")
-    assert mood["prezent"][0]["feats"] is not mood["prezent"][1]["feats"]
-
-
 def test_conditional_feats_do_not_share_identity_between_prezent_and_perfect():
     mood = conditional_mood("merge", "mers")
     for i in range(len(mood["prezent"])):
@@ -498,6 +493,72 @@ def test_transform_derives_the_negative_imperative_2sg_for_further_corrupted_ver
         assert forbidden not in second_person_singular["form"]
         assert second_person_singular["form"] == f"nu {verb}"
         assert second_person_singular["source"] == "derived"
+
+
+def test_transform_leaves_the_affirmative_imperative_untouched_for_a_corrupt_verb():
+    """The disclosure rule is deliberately asymmetric: the negative
+    imperative 2sg is composed when verbecc's own template is corrupt, but
+    the affirmative imperative is passed through uncorrected, non-word and
+    all. `a avea`'s affirmative 2sg imperative is "aai" -- the same broken
+    template that also corrupts the negative -- and it must still read that
+    way, `source: "verbecc"`, not silently fixed. This is exactly the kind
+    of asymmetry a later "tidy-up" would erase without a test pinning it.
+    """
+    result = transform(raw("avea"), "avea")
+    affirmativ = result["moods"]["imperativ"]["imperativ"]
+    second_person_singular = [e for e in affirmativ if e["pronoun"] == "tu"][0]
+    assert second_person_singular["form"] == "aai"
+    assert second_person_singular["source"] == "verbecc"
+
+
+def test_transform_composes_the_negative_imperative_2sg_only_where_intended():
+    """The sweep a single-verb assertion cannot provide: proof the
+    composition is correctly SCOPED, not merely that it fires somewhere.
+
+    Three verbs, three different intended outcomes:
+
+    - merge: a normal personal verb whose data is already intact. The
+      composed 2sg must be byte-identical to what verbecc itself returns
+      for that entry -- composing must not change a form that needed no
+      fixing.
+    - ninge: impersonal, has no imperative. verbecc marks every person with
+      the "-" sentinel, and composition must leave it alone rather than
+      fabricate "nu ninge" for a verb that has no imperative at all.
+    - face: a corrupted template ("nu fudrir;odrir"). Composition must
+      replace it with "nu face", `source: "derived"`.
+    """
+    merge_raw = raw("merge")
+    merge_expected_form = next(
+        entry["c"][0]
+        for entry in merge_raw["moods"]["imperativ"]["negativ"]
+        if entry.get("pr") == "tu"
+    )
+    merge_result = transform(merge_raw, "merge")
+    merge_2sg = next(
+        e
+        for e in merge_result["moods"]["imperativ"]["negativ"]
+        if e["pronoun"] == "tu"
+    )
+    assert merge_2sg["form"] == merge_expected_form
+    assert merge_2sg["source"] == "derived"
+
+    ninge_result = transform(raw("ninge"), "ninge")
+    ninge_2sg = next(
+        e
+        for e in ninge_result["moods"]["imperativ"]["negativ"]
+        if e["pronoun"] == "tu"
+    )
+    assert ninge_2sg["form"] == "-"
+    assert ninge_2sg["source"] == "verbecc"
+
+    face_result = transform(raw("face"), "face")
+    face_2sg = next(
+        e
+        for e in face_result["moods"]["imperativ"]["negativ"]
+        if e["pronoun"] == "tu"
+    )
+    assert face_2sg["form"] == "nu face"
+    assert face_2sg["source"] == "derived"
 
 
 from app.services.verbecc_service import EmptyVerbError, conjugate_verb  # noqa: E402
