@@ -144,3 +144,58 @@ def imperative_entries(raw_entries: list[dict]) -> list[dict]:
             expanded["feats"] = {"Person": "2", "Number": number}
             result.append(expanded)
     return result
+
+
+# The Romanian conditional auxiliary. Invariant: it does not vary by
+# conjugation class, person-stem or irregularity -- `a fi` itself gives
+# "a\u0219 fi", "a\u0219 fi fost" -- which is what makes synthesising this mood
+# paradigm application rather than a grammatical judgement.
+_CONDITIONAL = (
+    ("eu", "a\u0219", {"Person": "1", "Number": "Sing"}),
+    ("tu", "ai", {"Person": "2", "Number": "Sing"}),
+    ("el", "ar", {"Person": "3", "Number": "Sing", "Gender": "Masc"}),
+    ("ea", "ar", {"Person": "3", "Number": "Sing", "Gender": "Fem"}),
+    ("noi", "am", {"Person": "1", "Number": "Plur"}),
+    ("voi", "a\u021bi", {"Person": "2", "Number": "Plur"}),
+    ("ei", "ar", {"Person": "3", "Number": "Plur", "Gender": "Masc"}),
+    ("ele", "ar", {"Person": "3", "Number": "Plur", "Gender": "Fem"}),
+)
+
+
+def conditional_mood(infinitive: str, participle: str) -> dict[str, list[dict]]:
+    """The condi\u021bional mood, which verbecc declares but does not populate.
+
+    prezent = auxiliary + infinitive.  perfect = auxiliary + "fi" + participle.
+
+    `infinitive` MUST come from verbecc's `verb.infinitive` -- the looked-up
+    lemma -- and never from the `infinitiv` mood's generated form. The two
+    differ: a corrupted template makes the mood's version of `a face` read
+    "fudrir;odrir", and deriving from it would ship "a\u0219 fudrir;odrir"
+    stamped `source: "derived"`.
+
+    Every form here is `derived`. Provenance is inherited, not reset: a
+    conditional built from a predicted infinitive is a guess on a guess, and
+    the response's `verb.provenance` stays "predicted" to say so.
+    """
+    infinitive = normalise(infinitive)
+    participle = normalise(participle)
+    return {
+        "prezent": [
+            {
+                "form": f"{aux} {infinitive}",
+                "pronoun": pronoun,
+                "feats": feats,
+                "source": "derived",
+            }
+            for pronoun, aux, feats in _CONDITIONAL
+        ],
+        "perfect": [
+            {
+                "form": f"{aux} fi {participle}",
+                "pronoun": pronoun,
+                "feats": feats,
+                "source": "derived",
+            }
+            for pronoun, aux, feats in _CONDITIONAL
+        ],
+    }

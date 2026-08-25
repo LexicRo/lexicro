@@ -3,6 +3,7 @@
 import pytest
 
 from app.services.conjugate_transform import (
+    conditional_mood,
     expand,
     imperative_entries,
     normalise,
@@ -212,3 +213,60 @@ def test_imperative_typed_branch_drops_entries_with_unrecognised_number():
     assert [e["form"] for e in result] == ["merge\u021bi"]
     assert result[0]["pronoun"] == "voi"
     assert result[0]["feats"] == {"Person": "2", "Number": "Plur"}
+
+
+def test_conditional_prezent_is_auxiliary_plus_infinitive():
+    mood = conditional_mood("merge", "mers")
+    forms = [e["form"] for e in mood["prezent"]]
+    assert forms == [
+        "a\u0219 merge",
+        "ai merge",
+        "ar merge",
+        "ar merge",
+        "am merge",
+        "a\u021bi merge",
+        "ar merge",
+        "ar merge",
+    ]
+
+
+def test_conditional_perfect_is_auxiliary_plus_fi_plus_participle():
+    mood = conditional_mood("merge", "mers")
+    assert mood["perfect"][0]["form"] == "a\u0219 fi mers"
+    assert mood["perfect"][5]["form"] == "a\u021bi fi mers"
+
+
+def test_conditional_pronouns_match_the_indicative_set():
+    mood = conditional_mood("merge", "mers")
+    assert [e["pronoun"] for e in mood["prezent"]] == [
+        "eu", "tu", "el", "ea", "noi", "voi", "ei", "ele",
+    ]
+
+
+def test_conditional_carries_gendered_third_person_feats():
+    mood = conditional_mood("merge", "mers")
+    assert mood["prezent"][2]["feats"] == {
+        "Person": "3", "Number": "Sing", "Gender": "Masc",
+    }
+    assert mood["prezent"][3]["feats"] == {
+        "Person": "3", "Number": "Sing", "Gender": "Fem",
+    }
+    assert mood["prezent"][0]["feats"] == {"Person": "1", "Number": "Sing"}
+
+
+def test_conditional_forms_are_all_marked_derived():
+    mood = conditional_mood("merge", "mers")
+    assert all(e["source"] == "derived" for e in mood["prezent"])
+    assert all(e["source"] == "derived" for e in mood["perfect"])
+
+
+def test_conditional_of_a_fi_is_not_special_cased():
+    mood = conditional_mood("fi", "fost")
+    assert mood["prezent"][0]["form"] == "a\u0219 fi"
+    assert mood["perfect"][0]["form"] == "a\u0219 fi fost"
+
+
+def test_conditional_normalises_its_inputs():
+    mood = conditional_mood("min\u0163i", "min\u0163it")
+    assert mood["prezent"][0]["form"] == "a\u0219 min\u021bi"
+    assert mood["perfect"][0]["form"] == "a\u0219 fi min\u021bit"
