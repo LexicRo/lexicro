@@ -124,7 +124,7 @@ def _verbecc_shaped_imperative():
     """
     pronouns = ["eu", "tu", "el", "ea", "noi", "voi", "ei", "ele"]
     entries = []
-    for form in ("merge", "mergeţi"):
+    for form in ("merge", "merge\u0163i"):
         for pr in pronouns:
             entries.append({"c": [form], "pr": pr})
     return entries
@@ -140,7 +140,7 @@ def test_imperative_assigns_second_person_singular_then_plural():
     assert result[0]["form"] == "merge"
     assert result[0]["pronoun"] == "tu"
     assert result[0]["feats"] == {"Person": "2", "Number": "Sing"}
-    assert result[1]["form"] == "mergeți"
+    assert result[1]["form"] == "merge\u021bi"
     assert result[1]["pronoun"] == "voi"
     assert result[1]["feats"] == {"Person": "2", "Number": "Plur"}
 
@@ -159,10 +159,10 @@ def test_imperative_survives_upstream_fixing_the_person_list():
     """
     fixed = [
         {"c": ["mergi"], "n": "s", "p": "2", "pr": "tu"},
-        {"c": ["mergeţi"], "n": "p", "p": "2", "pr": "voi"},
+        {"c": ["merge\u0163i"], "n": "p", "p": "2", "pr": "voi"},
     ]
     result = imperative_entries(fixed)
-    assert [e["form"] for e in result] == ["mergi", "mergeți"]
+    assert [e["form"] for e in result] == ["mergi", "merge\u021bi"]
     assert result[0]["feats"] == {"Person": "2", "Number": "Sing"}
     assert result[1]["feats"] == {"Person": "2", "Number": "Plur"}
 
@@ -170,9 +170,45 @@ def test_imperative_survives_upstream_fixing_the_person_list():
 def test_imperative_handles_the_negative_tense_identically():
     pronouns = ["eu", "tu", "el", "ea", "noi", "voi", "ei", "ele"]
     entries = []
-    for form in ("nu merge", "nu mergeţi"):
+    for form in ("nu merge", "nu merge\u0163i"):
         for pr in pronouns:
             entries.append({"c": [form], "pr": pr})
     result = imperative_entries(entries)
     # "nu" is not a pronoun and must survive the split intact
-    assert [e["form"] for e in result] == ["nu merge", "nu mergeți"]
+    assert [e["form"] for e in result] == ["nu merge", "nu merge\u021bi"]
+
+
+def test_imperative_typed_branch_is_not_positional():
+    """Ordering comes from each entry's own `n`, not from input position.
+
+    Feeding the typed shape plural-first must still come back singular
+    first. Deriving the slot from input order rather than from `n` would
+    fail this.
+    """
+    reversed_order = [
+        {"c": ["merge\u0163i"], "n": "p", "p": "2", "pr": "voi"},
+        {"c": ["mergi"], "n": "s", "p": "2", "pr": "tu"},
+    ]
+    result = imperative_entries(reversed_order)
+    assert [e["form"] for e in result] == ["mergi", "merge\u021bi"]
+    assert result[0]["feats"] == {"Person": "2", "Number": "Sing"}
+    assert result[1]["feats"] == {"Person": "2", "Number": "Plur"}
+
+
+def test_imperative_typed_branch_drops_entries_with_unrecognised_number():
+    """A typed entry with a missing/unexpected `n` must not be mislabelled.
+
+    verbecc never sets `p` on today's Romanian imperative entries, so this
+    input is degenerate against the live install -- but it is exactly the
+    shape "upstream ships `p` but omits `n`" would take, which is the case
+    the typed branch exists for. The entry with no recognisable `n` is
+    dropped rather than guessed into a slot; only the plural entry survives.
+    """
+    degenerate = [
+        {"c": ["mergi"], "p": "2", "pr": "tu"},
+        {"c": ["merge\u0163i"], "n": "p", "p": "2", "pr": "voi"},
+    ]
+    result = imperative_entries(degenerate)
+    assert [e["form"] for e in result] == ["merge\u021bi"]
+    assert result[0]["pronoun"] == "voi"
+    assert result[0]["feats"] == {"Person": "2", "Number": "Plur"}

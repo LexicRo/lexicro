@@ -116,15 +116,29 @@ def imperative_entries(raw_entries: list[dict]) -> list[dict]:
     there are only two of them, at which point the slice would find one. So the
     typed shape is preferred when present. Both paths are tested; do not
     simplify this to either branch alone, and do not make it positional.
+
+    In the typed branch, each entry's slot is decided by its own `n` (via the
+    existing `_NUMBER` map), never by input order or a sort. An entry whose
+    `n` is missing or not one of the recognised values is dropped rather than
+    guessed into a slot: a mislabelled entry is worse than a missing one.
     """
     typed = [e for e in raw_entries if e.get("p") == "2"]
     if typed:
-        ordered = sorted(typed, key=lambda e: 0 if e.get("n") == "s" else 1)
+        by_number = {_NUMBER[e["n"]]: e for e in typed if e.get("n") in _NUMBER}
+        ordered = [
+            (by_number[number], pronoun, number)
+            for pronoun, number in _IMPERATIVE_SLOTS
+            if number in by_number
+        ]
     else:
-        ordered = [e for e in raw_entries if e.get("pr") == "tu"]
+        untyped = [e for e in raw_entries if e.get("pr") == "tu"]
+        ordered = [
+            (entry, pronoun, number)
+            for entry, (pronoun, number) in zip(untyped, _IMPERATIVE_SLOTS)
+        ]
 
     result: list[dict] = []
-    for entry, (pronoun, number) in zip(ordered, _IMPERATIVE_SLOTS):
+    for entry, pronoun, number in ordered:
         for expanded in expand(entry):
             expanded["pronoun"] = pronoun
             expanded["feats"] = {"Person": "2", "Number": number}
