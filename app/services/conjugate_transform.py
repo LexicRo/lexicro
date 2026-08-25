@@ -29,3 +29,38 @@ _DIACRITICS = str.maketrans({"\u015f": "\u0219", "\u0163": "\u021b"})
 def normalise(text: str) -> str:
     """Legacy cedillas to Romanian's comma-below codepoints."""
     return text.translate(_DIACRITICS)
+
+
+_NUMBER = {"s": "Sing", "p": "Plur"}
+_GENDER = {"m": "Masc", "f": "Fem"}
+
+
+def ud_feats(entry: dict) -> dict[str, str]:
+    """verbecc's single-letter categories as Universal Features.
+
+    Same vocabulary /analyze returns for the same concepts. An inapplicable
+    category is absent from the dict rather than present and null, matching how
+    /analyze omits features that do not apply.
+    """
+    feats: dict[str, str] = {}
+    if entry.get("p"):
+        feats["Person"] = entry["p"]
+    if entry.get("n") in _NUMBER:
+        feats["Number"] = _NUMBER[entry["n"]]
+    if entry.get("g") in _GENDER:
+        feats["Gender"] = _GENDER[entry["g"]]
+    return feats
+
+
+def strip_pronoun(combined: str, pronoun: str | None) -> str:
+    """The inflected form without its pronoun.
+
+    verbecc glues them together ("eu merg") but also reports the pronoun
+    separately, so this is an exact split rather than string surgery. The
+    prefix is only removed when it is actually there: the imperative reports a
+    pronoun it does not prepend ("merge" with pr "tu"), and the negative
+    imperative prepends "nu" instead ("nu merge").
+    """
+    if pronoun and combined.startswith(pronoun + " "):
+        return combined[len(pronoun) + 1 :]
+    return combined
