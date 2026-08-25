@@ -7,6 +7,7 @@ from app.services.conjugate_transform import (
     expand,
     imperative_entries,
     normalise,
+    notes,
     strip_pronoun,
     ud_feats,
 )
@@ -270,3 +271,36 @@ def test_conditional_normalises_its_inputs():
     mood = conditional_mood("min\u0163i", "min\u0163it")
     assert mood["prezent"][0]["form"] == "a\u0219 min\u021bi"
     assert mood["perfect"][0]["form"] == "a\u0219 fi min\u021bit"
+
+
+def test_notes_are_general_first_then_specific():
+    result = notes()
+    assert result[0]["scope"] == "all"
+    assert result[1]["scope"] == "imperativ"
+
+
+def test_notes_carry_stable_codes():
+    codes = [n["code"] for n in notes()]
+    assert codes == ["upstream_unverified", "imperative_known_errors"]
+
+
+def test_the_general_note_names_a_defect_outside_the_imperative():
+    # ADR-0026: an imperative-only caveat implicitly certifies the other seven
+    # moods, and the min\u021bi indicative proves that certification false. If
+    # this assertion is ever "simplified" away, read the ADR before doing it.
+    general = notes()[0]["message"]
+    assert "min\u021bi" in general
+    assert "indicative" in general.lower()
+
+
+def test_notes_are_a_fresh_list_each_call():
+    # a caller mutating the response must not corrupt the module constant
+    first = notes()
+    first.append({"scope": "bogus", "code": "x", "message": "y"})
+    assert len(notes()) == 2
+
+
+def test_note_text_uses_comma_below_diacritics_only():
+    for note in notes():
+        assert "\u015f" not in note["message"]
+        assert "\u0163" not in note["message"]

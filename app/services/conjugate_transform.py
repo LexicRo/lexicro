@@ -199,3 +199,46 @@ def conditional_mood(infinitive: str, participle: str) -> dict[str, list[dict]]:
             for pronoun, aux, feats in _CONDITIONAL
         ],
     }
+
+
+# Source-quality disclosure, required on every successful response.
+#
+# LexicRo does not correct verbecc's Romanian -- it reports defects upstream
+# and discloses them here. A visible correction would be a claim about
+# everything left uncorrected, and that claim would be false: the errors are
+# not confined to the imperative.
+#
+# The general note therefore comes first and is NOT scoped to the imperative.
+# Narrowing it to the specific defects we happen to have found would recreate
+# exactly the problem it exists to avoid. If verbecc fixes the imperative, the
+# second note goes and the first one stays.
+#
+# `code` is stable and may be relied on. `message` wording may be revised.
+_NOTES: tuple[dict, ...] = (
+    {
+        "scope": "all",
+        "code": "upstream_unverified",
+        "message": (
+            "Forms come from verbecc 2.0.2 and are not exhaustively verified. "
+            "Known errors exist outside the imperative -- e.g. the indicative "
+            "present of 'a min\u021bi' returns 'eu mit' where correct Romanian "
+            "is 'eu mint'."
+        ),
+    },
+    {
+        "scope": "imperativ",
+        "code": "imperative_known_errors",
+        "message": (
+            "The imperative has known residual errors in a small set of verbs "
+            "(e.g. 'merge' returns 'merge' where correct is 'mergi'), and for "
+            "some verbs the form varies by transitivity -- 'treci!' vs "
+            "'trece-m\u0103!' -- so a bare verb cannot determine which was "
+            "meant."
+        ),
+    },
+)
+
+
+def notes() -> list[dict]:
+    """A fresh copy of the disclosure, so a caller cannot mutate the constant."""
+    return [dict(note) for note in _NOTES]
