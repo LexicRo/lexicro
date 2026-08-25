@@ -122,10 +122,16 @@ effort to surface Romanian words that are dusty but not yet archaic.
 ## verbecc
 
 **Used for:** the `/conjugate` endpoint's verb conjugation tables. LexicRo reshapes
-verbecc's output into its own response schema, synthesises the `condițional` mood
-that verbecc declares but does not populate, and normalises legacy cedilla
-characters to Romanian's comma-below diacritics. The conjugated forms themselves
-are verbecc's and are not modified.
+verbecc's output into its own response schema and synthesises the `condițional`
+mood that verbecc declares but does not populate. LexicRo also applies three
+targeted transformations to individual forms: it normalises legacy cedilla
+characters to Romanian's comma-below diacritics; it serves the `infinitiv` mood
+from verbecc's own `verb.infinitive` field rather than a corrupted template
+output, for the small set of verbs (the `face` family) where that template is
+corrupted; and it composes the negative imperative's second-person-singular form
+as `nu` + infinitive, rather than passing through verbecc's own value, for the
+small set of verbs whose template corrupts that form too (`face`, `avea`, `vrea`
+and their families). Every other form is verbecc's own, unmodified.
 
 - **Resource:** [verbecc](https://github.com/bretttolbert/verbecc) 2.0.2
 - **Author:** Brett Tolbert

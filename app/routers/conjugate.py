@@ -39,7 +39,16 @@ class NoteOut(BaseModel):
 
 
 class FormOut(BaseModel):
-    form: str = Field(..., description="The inflected form, without its pronoun.")
+    form: str = Field(
+        ...,
+        description=(
+            "The inflected form, without its pronoun. The literal string "
+            "'-' means the form does not exist for that person -- verbecc's "
+            "own sentinel for it, passed through rather than hidden. "
+            "Impersonal verbs are the usual reason (e.g. 'a ninge', \"to "
+            "snow\", has no imperative)."
+        ),
+    )
     pronoun: str | None = Field(
         ...,
         description=(
