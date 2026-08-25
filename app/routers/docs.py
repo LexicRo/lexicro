@@ -7,8 +7,9 @@ these files -- and second copies drift. Serving them from the API instead keeps
 The site just links here.
 
 Routes:
-    /guide         -> the /analyze guide      (docs/analyze.md)
-    /attribution   -> licensing and credits   (ATTRIBUTION.md)
+    /guide             -> the /analyze guide      (docs/analyze.md)
+    /guide/conjugate   -> the /conjugate guide     (docs/conjugate.md)
+    /attribution       -> licensing and credits    (ATTRIBUTION.md)
 
 Deliberately NOT under /docs, which FastAPI uses for the interactive Swagger UI.
 Two different things: /docs is the API explorer, /guide is prose.
@@ -32,6 +33,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 
 PAGES = {
     "guide": (ROOT / "docs" / "analyze.md", "LexicRo — /analyze guide"),
+    "guide/conjugate": (ROOT / "docs" / "conjugate.md", "LexicRo — /conjugate guide"),
     "attribution": (ROOT / "ATTRIBUTION.md", "LexicRo — Attribution"),
 }
 
@@ -77,7 +79,8 @@ hr { border: 0; border-top: 1px solid #e3e3e3; margin: 2.5rem 0; }
 
 NAV = (
     '<div class="nav">'
-    '<a href="/guide">Guide</a>'
+    '<a href="/guide">/analyze</a>'
+    '<a href="/guide/conjugate">/conjugate</a>'
     '<a href="/docs">API explorer</a>'
     '<a href="/attribution">Attribution</a>'
     '<a href="https://lexicro.com">lexicro.com</a>'
@@ -103,6 +106,12 @@ def _render(path: Path, title: str) -> str:
 @router.get("/guide", response_class=HTMLResponse)
 def guide() -> str:
     path, title = PAGES["guide"]
+    return _render(path, title)
+
+
+@router.get("/guide/conjugate", response_class=HTMLResponse)
+def guide_conjugate() -> str:
+    path, title = PAGES["guide/conjugate"]
     return _render(path, title)
 
 

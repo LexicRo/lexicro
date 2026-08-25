@@ -100,3 +100,16 @@ def test_minti_still_returns_the_upstream_defect(client):
     data = client.get("/conjugate/min\u021bi").json()
     forms = [e["form"] for e in data["moods"]["indicativ"]["prezent"]]
     assert "mit" in forms, "verbecc may have fixed the dezmi:n\u0163i template"
+
+
+def test_the_conjugate_guide_is_served(client):
+    response = client.get("/guide/conjugate")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+
+
+def test_the_guide_documents_the_limitations_rather_than_hiding_them(client):
+    body = client.get("/guide/conjugate").text
+    assert "min\u021bi" in body          # the indicative defect
+    assert "transitiv" in body.lower()   # the imperative ambiguity
+    assert "verbecc" in body
