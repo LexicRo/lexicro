@@ -64,3 +64,29 @@ def strip_pronoun(combined: str, pronoun: str | None) -> str:
     if pronoun and combined.startswith(pronoun + " "):
         return combined[len(pronoun) + 1 :]
     return combined
+
+
+def expand(entry: dict, source: str = "verbecc") -> list[dict]:
+    """One verbecc entry becomes one response entry per form it holds.
+
+    `c` is a list. It is length 1 for all but a handful of entries -- `a avea`
+    has two present-tense forms per person, the short auxiliary and the long
+    main verb, both correct. Both are returned, with identical feats, in
+    verbecc's order. Taking element zero would present `el a` as the present
+    tense of `a avea`, which is the worse of the two to show alone; ranking
+    them is a judgement LexicRo does not make.
+
+    A tense array is therefore NOT guaranteed to hold one entry per
+    person/number. The guide says so.
+    """
+    pronoun = entry.get("pr")
+    feats = ud_feats(entry)
+    return [
+        {
+            "form": normalise(strip_pronoun(form, pronoun)),
+            "pronoun": pronoun,
+            "feats": feats,
+            "source": source,
+        }
+        for form in entry["c"]
+    ]

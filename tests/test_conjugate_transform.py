@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.services.conjugate_transform import normalise, strip_pronoun, ud_feats
+from app.services.conjugate_transform import expand, normalise, strip_pronoun, ud_feats
 
 
 def test_normalise_replaces_t_cedilla():
@@ -67,3 +67,42 @@ def test_strip_pronoun_leaves_forms_that_do_not_carry_one():
 
 def test_strip_pronoun_handles_a_null_pronoun():
     assert strip_pronoun("mergand", None) == "mergand"
+
+
+def test_expand_produces_one_entry_for_one_form():
+    assert expand({"c": ["eu merg"], "n": "s", "p": "1", "pr": "eu"}) == [
+        {
+            "form": "merg",
+            "pronoun": "eu",
+            "feats": {"Person": "1", "Number": "Sing"},
+            "source": "verbecc",
+        }
+    ]
+
+
+def test_expand_produces_one_entry_per_form_when_verbecc_gives_two():
+    # a avea, indicativ prezent 3sg: both forms are correct Romanian
+    result = expand(
+        {"c": ["el a", "el are"], "g": "m", "n": "s", "p": "3", "pr": "el"}
+    )
+    assert [e["form"] for e in result] == ["a", "are"]
+    # identical feats on both -- neither form is ranked
+    assert result[0]["feats"] == result[1]["feats"]
+    assert result[0]["feats"] == {"Person": "3", "Number": "Sing", "Gender": "Masc"}
+
+
+def test_expand_normalises_diacritics_in_the_form():
+    result = expand({"c": ["voi merge\u0163i"], "n": "p", "p": "2", "pr": "voi"})
+    assert result[0]["form"] == "merge\u021bi"
+
+
+def test_expand_gives_a_null_pronoun_when_verbecc_reports_none():
+    result = expand({"c": ["merg\u00e2nd"]})
+    assert result == [
+        {"form": "merg\u00e2nd", "pronoun": None, "feats": {}, "source": "verbecc"}
+    ]
+
+
+def test_expand_accepts_an_explicit_source():
+    result = expand({"c": ["eu merg"], "n": "s", "p": "1", "pr": "eu"}, source="derived")
+    assert result[0]["source"] == "derived"
