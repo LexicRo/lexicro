@@ -90,3 +90,43 @@ def expand(entry: dict, source: str = "verbecc") -> list[dict]:
         }
         for form in entry["c"]
     ]
+
+
+# The imperative is second person, singular then plural. LexicRo supplies the
+# categories because verbecc does not: its Romanian imperative entries carry no
+# `p` or `n` at all (see below).
+_IMPERATIVE_SLOTS = (("tu", "Sing"), ("voi", "Plur"))
+
+
+def imperative_entries(raw_entries: list[dict]) -> list[dict]:
+    """The two real imperative entries, out of the sixteen verbecc returns.
+
+    verbecc 2.0.2 emits both forms crossed with all eight pronouns -- an
+    imperative for `eu` and `noi`, which Romanian does not have. The cause is a
+    one-line mapping error upstream (Romanian is pointed at the Italian
+    imperative person list), which also leaves `p` and `n` unset on every
+    entry. Reported upstream; not corrected here.
+
+    Filtering on `pr in ("tu", "voi")` would return FOUR entries, because both
+    forms appear under both pronouns. Slicing on a single pronoun instead
+    de-duplicates the eight-fold repetition and leaves the distinct forms in
+    order: first 2sg, second 2pl.
+
+    Once upstream fixes the mapping the entries arrive correctly typed and
+    there are only two of them, at which point the slice would find one. So the
+    typed shape is preferred when present. Both paths are tested; do not
+    simplify this to either branch alone, and do not make it positional.
+    """
+    typed = [e for e in raw_entries if e.get("p") == "2"]
+    if typed:
+        ordered = sorted(typed, key=lambda e: 0 if e.get("n") == "s" else 1)
+    else:
+        ordered = [e for e in raw_entries if e.get("pr") == "tu"]
+
+    result: list[dict] = []
+    for entry, (pronoun, number) in zip(ordered, _IMPERATIVE_SLOTS):
+        for expanded in expand(entry):
+            expanded["pronoun"] = pronoun
+            expanded["feats"] = {"Person": "2", "Number": number}
+            result.append(expanded)
+    return result

@@ -2,7 +2,13 @@
 
 import pytest
 
-from app.services.conjugate_transform import expand, normalise, strip_pronoun, ud_feats
+from app.services.conjugate_transform import (
+    expand,
+    imperative_entries,
+    normalise,
+    strip_pronoun,
+    ud_feats,
+)
 
 
 def test_normalise_replaces_t_cedilla():
@@ -108,3 +114,65 @@ def test_expand_gives_a_null_pronoun_when_verbecc_reports_none():
 def test_expand_accepts_an_explicit_source():
     result = expand({"c": ["eu merg"], "n": "s", "p": "1", "pr": "eu"}, source="derived")
     assert result[0]["source"] == "derived"
+
+
+def _verbecc_shaped_imperative():
+    """The 16-entry shape verbecc 2.0.2 actually returns.
+
+    Two forms, each repeated across all eight pronouns, with no person or
+    number recorded.
+    """
+    pronouns = ["eu", "tu", "el", "ea", "noi", "voi", "ei", "ele"]
+    entries = []
+    for form in ("merge", "mergeţi"):
+        for pr in pronouns:
+            entries.append({"c": [form], "pr": pr})
+    return entries
+
+
+def test_imperative_filters_sixteen_entries_down_to_two():
+    result = imperative_entries(_verbecc_shaped_imperative())
+    assert len(result) == 2
+
+
+def test_imperative_assigns_second_person_singular_then_plural():
+    result = imperative_entries(_verbecc_shaped_imperative())
+    assert result[0]["form"] == "merge"
+    assert result[0]["pronoun"] == "tu"
+    assert result[0]["feats"] == {"Person": "2", "Number": "Sing"}
+    assert result[1]["form"] == "mergeți"
+    assert result[1]["pronoun"] == "voi"
+    assert result[1]["feats"] == {"Person": "2", "Number": "Plur"}
+
+
+def test_imperative_drops_the_impossible_pronouns():
+    result = imperative_entries(_verbecc_shaped_imperative())
+    assert {e["pronoun"] for e in result} == {"tu", "voi"}
+
+
+def test_imperative_survives_upstream_fixing_the_person_list():
+    """The shape verbecc will return once grammar_defines.py:91 is fixed.
+
+    Two entries, correctly typed. A positional filter would return the right
+    answer today and silently the wrong one after that upgrade; this asserts
+    the filter is not positional.
+    """
+    fixed = [
+        {"c": ["mergi"], "n": "s", "p": "2", "pr": "tu"},
+        {"c": ["mergeţi"], "n": "p", "p": "2", "pr": "voi"},
+    ]
+    result = imperative_entries(fixed)
+    assert [e["form"] for e in result] == ["mergi", "mergeți"]
+    assert result[0]["feats"] == {"Person": "2", "Number": "Sing"}
+    assert result[1]["feats"] == {"Person": "2", "Number": "Plur"}
+
+
+def test_imperative_handles_the_negative_tense_identically():
+    pronouns = ["eu", "tu", "el", "ea", "noi", "voi", "ei", "ele"]
+    entries = []
+    for form in ("nu merge", "nu mergeţi"):
+        for pr in pronouns:
+            entries.append({"c": [form], "pr": pr})
+    result = imperative_entries(entries)
+    # "nu" is not a pronoun and must survive the split intact
+    assert [e["form"] for e in result] == ["nu merge", "nu mergeți"]
