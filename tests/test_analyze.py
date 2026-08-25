@@ -5,30 +5,10 @@ CONTRACT -- which keys appear when -- not the linguistics.
 """
 
 import pytest
-from fastapi.testclient import TestClient
 
 from lexicro_nlp.analyzer import Analysis, Token
 
 import app.routers.analyze as analyze_mod
-from app.main import app
-from app.middleware.rate_limit import check_rate_limit
-
-client = TestClient(app)
-
-
-@pytest.fixture(autouse=True)
-def _stub_rate_limiter():
-    """Schema-contract tests assert the SHAPE of a response.
-
-    The rate limiter queries Postgres on every route, so without this these
-    tests would need a migrated database to check a JSON key. Scoped to a
-    fixture rather than module scope: `app` is a singleton shared by every
-    test module, and a leaked override makes unrelated tests pass for the
-    wrong reason.
-    """
-    app.dependency_overrides[check_rate_limit] = lambda: None
-    yield
-    app.dependency_overrides.pop(check_rate_limit, None)
 
 
 class FakeAnalyzer:
@@ -50,7 +30,7 @@ def fake(monkeypatch):
     return install
 
 
-def test_unambiguous_token_has_source_and_no_candidates(fake):
+def test_unambiguous_token_has_source_and_no_candidates(fake, client):
     fake(Analysis(sentences=[[Token("casă", "casă", "NOUN", {"Number": "Sing"}, "lexicon")]]))
     r = client.post("/analyze", json={"text": "casă"})
     assert r.status_code == 200
@@ -59,7 +39,7 @@ def test_unambiguous_token_has_source_and_no_candidates(fake):
     assert tok.get("candidates") is None
 
 
-def test_ambiguous_token_carries_candidates(fake):
+def test_ambiguous_token_carries_candidates(fake, client):
     cands = [
         {"lemma": "fi", "upos": "AUX", "feats": {"Tense": "Imp"}},
         {"lemma": "eră", "upos": "NOUN", "feats": {"Number": "Sing"}},
@@ -73,7 +53,7 @@ def test_ambiguous_token_carries_candidates(fake):
     assert tok["lemma"] == "fi"
 
 
-def test_fourth_source_value_fails_loudly(fake):
+def test_fourth_source_value_fails_loudly(fake, client):
     """ADR-0022 / finding 2: `source` is Literal["lexicon", "suffix", "model"].
 
     A bogus fourth value must never reach a client -- it should fail response
@@ -92,7 +72,7 @@ def test_fourth_source_value_fails_loudly(fake):
         client.post("/analyze", json={"text": "x"})
 
 
-def test_truncated_token_omits_source_key(fake):
+def test_truncated_token_omits_source_key(fake, client):
     fake(Analysis(sentences=[[Token("cuvântul", "cuvântul", "X", {})]], truncated=True))
     r = client.post("/analyze", json={"text": "cuvântul"})
     body = r.json()
@@ -105,13 +85,13 @@ def test_truncated_token_omits_source_key(fake):
     assert tok["upos"] == "X"
 
 
-def test_truncated_defaults_false(fake):
+def test_truncated_defaults_false(fake, client):
     fake(Analysis(sentences=[[Token("casă", "casă", "NOUN", {}, "lexicon")]]))
     r = client.post("/analyze", json={"text": "casă"})
     assert r.json()["truncated"] is False
 
 
-def test_openapi_documents_all_three_source_values():
+def test_openapi_documents_all_three_source_values(client):
     schema = client.get("/openapi.json").json()
     desc = schema["components"]["schemas"]["TokenOut"]["properties"]["source"]["description"]
     for value in ("lexicon", "suffix", "model"):
@@ -119,7 +99,7 @@ def test_openapi_documents_all_three_source_values():
     assert "truncated" not in desc
 
 
-def test_openapi_exposes_candidates():
+def test_openapi_exposes_candidates(client):
     schema = client.get("/openapi.json").json()
     assert "candidates" in schema["components"]["schemas"]["TokenOut"]["properties"]
     assert "CandidateOut" in schema["components"]["schemas"]

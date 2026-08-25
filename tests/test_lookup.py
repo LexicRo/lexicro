@@ -1,11 +1,15 @@
 import pytest
-from fastapi.testclient import TestClient
-from app.main import app
 
-client = TestClient(app)
+pytestmark = pytest.mark.skip(
+    reason=(
+        "Endpoint withdrawn from the product surface (ADR-0025); its router is "
+        "commented out in app/main.py. Tests are kept, not deleted: the "
+        "endpoints may return, and a deleted test is a lost specification."
+    )
+)
 
 
-def test_lookup_known_word():
+def test_lookup_known_word(client):
     response = client.get("/lookup/casă")
     assert response.status_code == 200
     data = response.json()
@@ -14,7 +18,7 @@ def test_lookup_known_word():
     assert data["definition_count"] == len(data["definitions"])
 
 
-def test_lookup_has_required_fields():
+def test_lookup_has_required_fields(client):
     response = client.get("/lookup/casă")
     data = response.json()
     first = data["definitions"][0]
@@ -24,7 +28,7 @@ def test_lookup_has_required_fields():
     assert "modified" in first
 
 
-def test_lookup_allowed_sources_only():
+def test_lookup_allowed_sources_only(client):
     response = client.get("/lookup/casă")
     data = response.json()
     allowed = {"DEX '09", "MDA2", "DLRLC"}
@@ -32,7 +36,7 @@ def test_lookup_allowed_sources_only():
         assert defn["source"] in allowed
 
 
-def test_lookup_no_html_in_text():
+def test_lookup_no_html_in_text(client):
     response = client.get("/lookup/casă")
     data = response.json()
     for defn in data["definitions"]:
@@ -40,21 +44,21 @@ def test_lookup_no_html_in_text():
         assert ">" not in defn["text"]
 
 
-def test_lookup_verb():
+def test_lookup_verb(client):
     response = client.get("/lookup/merge")
     assert response.status_code == 200
     data = response.json()
     assert len(data["definitions"]) > 0
 
 
-def test_lookup_adjective():
+def test_lookup_adjective(client):
     response = client.get("/lookup/frumos")
     assert response.status_code == 200
     data = response.json()
     assert len(data["definitions"]) > 0
 
 
-def test_lookup_unknown_word():
+def test_lookup_unknown_word(client):
     response = client.get("/lookup/xyzabc")
     assert response.status_code == 404
     assert "not found" in response.json()["detail"].lower()

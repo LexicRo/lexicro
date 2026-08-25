@@ -116,3 +116,25 @@ official dataset dumps at [dexonline.ro/tools](https://dexonline.ro/tools),
 along with [dexonline.ro/surse](https://dexonline.ro/surse) and
 [clre.solirom.ro](https://clre.solirom.ro/). voroave.ro is his own project: an
 effort to surface Romanian words that are dusty but not yet archaic.
+
+---
+
+## verbecc
+
+**Used for:** the `/conjugate` endpoint's verb conjugation tables. LexicRo reshapes
+verbecc's output into its own response schema, synthesises the `condițional` mood
+that verbecc declares but does not populate, and normalises legacy cedilla
+characters to Romanian's comma-below diacritics. The conjugated forms themselves
+are verbecc's and are not modified.
+
+- **Resource:** [verbecc](https://github.com/bretttolbert/verbecc) 2.0.2
+- **Author:** Brett Tolbert
+- **Licence:** [LGPL-3.0](https://www.gnu.org/licenses/lgpl-3.0.html)
+
+verbecc is used **unmodified**, as an installed library dependency. LexicRo does
+not distribute it, link it statically, or ship a modified version of it.
+
+Every form served by `/conjugate` carries a `source` field recording whether it
+came from verbecc or was derived by LexicRo, and every response carries a `notes`
+array recording the source's known limitations. See the
+[`/conjugate` guide](/guide/conjugate).
