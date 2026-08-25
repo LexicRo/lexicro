@@ -85,7 +85,7 @@ def expand(entry: dict, source: str = "verbecc") -> list[dict]:
         {
             "form": normalise(strip_pronoun(form, pronoun)),
             "pronoun": pronoun,
-            "feats": feats,
+            "feats": dict(feats),
             "source": source,
         }
         for form in entry["c"]

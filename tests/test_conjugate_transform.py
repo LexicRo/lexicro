@@ -89,6 +89,8 @@ def test_expand_produces_one_entry_per_form_when_verbecc_gives_two():
     # identical feats on both -- neither form is ranked
     assert result[0]["feats"] == result[1]["feats"]
     assert result[0]["feats"] == {"Person": "3", "Number": "Sing", "Gender": "Masc"}
+    # but not the same dict -- mutating one must not corrupt the other
+    assert result[0]["feats"] is not result[1]["feats"]
 
 
 def test_expand_normalises_diacritics_in_the_form():
