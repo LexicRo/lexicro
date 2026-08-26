@@ -85,7 +85,18 @@ gzip -t "${TARGET}.partial" || { rm -f "${TARGET}.partial"; die "gzip verificati
 # ...and it must actually contain the schema. This is the check that matters:
 # a dump that ran against the wrong database, or died after the header, passes
 # every size and checksum test while being useless.
-if ! gunzip -c "${TARGET}.partial" | grep -qi "CREATE TABLE.*${EXPECT_TABLE}"; then
+#
+# Count matches rather than `grep -q`. Under `set -o pipefail`, `grep -q` exits
+# the moment it finds the match, gunzip takes SIGPIPE writing into the closed
+# pipe and returns 141, and pipefail promotes that to the pipeline's status --
+# so a perfectly good dump is read as "table missing" and deleted. It bites only
+# once the dump outgrows the pipe buffer, because until then gunzip has finished
+# writing before grep quits: this passed for months, then failed every night
+# from 2026-08-26, when request_log grew past ~64K of decompressed output.
+# `grep -c` reads to EOF, so there is no early exit and no signal. `|| true`
+# keeps a legitimate no-match (grep exits 1) from tripping `set -e`.
+MATCHES="$(gunzip -c "${TARGET}.partial" | grep -ci "CREATE TABLE.*${EXPECT_TABLE}" || true)"
+if [ "${MATCHES:-0}" -eq 0 ]; then
     rm -f "${TARGET}.partial"
     die "dump does not contain the ${EXPECT_TABLE} table -- refusing"
 fi
