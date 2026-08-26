@@ -1,5 +1,22 @@
-# Environment variables
-.env
+# Environment variables.
+#
+# The glob, not a bare `.env`, because the dangerous files are the sidecars an
+# editor leaves behind: .env.swp holds the buffer -- every secret in plaintext --
+# and .env.bak is what `sed -i.bak` drops next to the original. On 2026-08-26 a
+# .env.swp appeared as UNTRACKED on the production host, one careless
+# `git add -A` away from being committed to a public repository.
+#
+# Keep the negation if a .env.example is ever added, so the template stays
+# tracked while nothing carrying real values can be.
+.env*
+!.env.example
+
+# Editor and merge leftovers -- same reasoning, applied generally.
+*.swp
+*.swo
+*~
+*.orig
+*.rej
 
 # Python
 __pycache__/
