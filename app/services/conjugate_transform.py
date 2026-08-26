@@ -146,6 +146,13 @@ def imperative_entries(raw_entries: list[dict]) -> list[dict]:
     return result
 
 
+# verbecc's sentinel for "this form does not exist", used for 267 of the
+# 6,864 Romanian verbs -- the impersonal and defective ones. Two rules read
+# it: the conditional mirrors it rather than synthesising a person the verb
+# does not have, and the negative imperative refuses to overwrite it.
+_NONEXISTENT_FORM = "-"
+
+
 # The Romanian conditional auxiliary. Invariant: it does not vary by
 # conjugation class, person-stem or irregularity -- `a fi` itself gives
 # "a\u0219 fi", "a\u0219 fi fost" -- which is what makes synthesising this mood
@@ -162,7 +169,11 @@ _CONDITIONAL = (
 )
 
 
-def conditional_mood(infinitive: str, participle: str) -> dict[str, list[dict]]:
+def conditional_mood(
+    infinitive: str,
+    participle: str,
+    indicative_prezent: list[dict] | None = None,
+) -> dict[str, list[dict]]:
     """The condi\u021bional mood, which verbecc declares but does not populate.
 
     prezent = auxiliary + infinitive.  perfect = auxiliary + "fi" + participle.
@@ -176,13 +187,37 @@ def conditional_mood(infinitive: str, participle: str) -> dict[str, list[dict]]:
     Every form here is `derived`. Provenance is inherited, not reset: a
     conditional built from a predicted infinitive is a guess on a guess, and
     the response's `verb.provenance` stays "predicted" to say so.
+
+    `indicative_prezent`, when given, is the already-transformed
+    `indicativ.prezent` and decides WHICH persons exist. verbecc marks a
+    person that does not exist with the "-" sentinel, and does so for 267 of
+    6,864 Romanian verbs -- the impersonal and defective ones. Applying the
+    paradigm to all eight regardless produced "a\u0219 ninge", a first-person
+    conditional of a verb whose every personal indicative slot is "-".
+
+    Mirroring is per person rather than per verb, because the two are not the
+    same shape: `a ninge` HAS a third-person singular ("ninge") and lacks a
+    third-person plural, so a verb-level "impersonal" flag would get one of
+    those two wrong.
+
+    Omitted, the mood is built for all eight as before -- callers passing two
+    arguments are asking for the paradigm, not for a judgement about this verb.
     """
     infinitive = normalise(infinitive)
     participle = normalise(participle)
+    absent = {
+        entry["pronoun"]
+        for entry in (indicative_prezent or ())
+        if entry.get("form") == _NONEXISTENT_FORM
+    }
     return {
         "prezent": [
             {
-                "form": f"{aux} {infinitive}",
+                "form": (
+                    _NONEXISTENT_FORM
+                    if pronoun in absent
+                    else f"{aux} {infinitive}"
+                ),
                 "pronoun": pronoun,
                 "feats": dict(feats),
                 "source": "derived",
@@ -191,7 +226,11 @@ def conditional_mood(infinitive: str, participle: str) -> dict[str, list[dict]]:
         ],
         "perfect": [
             {
-                "form": f"{aux} fi {participle}",
+                "form": (
+                    _NONEXISTENT_FORM
+                    if pronoun in absent
+                    else f"{aux} fi {participle}"
+                ),
                 "pronoun": pronoun,
                 "feats": dict(feats),
                 "source": "derived",
@@ -199,9 +238,6 @@ def conditional_mood(infinitive: str, participle: str) -> dict[str, list[dict]]:
             for pronoun, aux, feats in _CONDITIONAL
         ],
     }
-
-
-_NONEXISTENT_FORM = "-"
 
 
 def compose_negative_imperative(negativ_entries: list[dict], infinitive: str) -> None:
@@ -285,6 +321,7 @@ def notes() -> list[dict]:
 
 
 _IMPERATIVE_MOOD = "imperativ"
+_INDICATIVE_MOOD = "indicativ"
 _CONDITIONAL_MOOD = "condi\u021bional"
 
 
@@ -328,7 +365,15 @@ def transform(raw: dict, input_text: str) -> dict:
     compose_negative_imperative(moods[_IMPERATIVE_MOOD]["negativ"], infinitive)
 
     participle = raw["moods"]["participiu"]["participiu"][0]["c"][0]
-    moods[_CONDITIONAL_MOOD] = conditional_mood(infinitive, participle)
+    # The indicative decides which persons this verb HAS. For the 267 verbs
+    # verbecc marks impersonal or defective, applying the conditional paradigm
+    # to all eight without consulting it produced first- and second-person
+    # conditionals of a verb with no personal forms at all.
+    moods[_CONDITIONAL_MOOD] = conditional_mood(
+        infinitive,
+        participle,
+        moods.get(_INDICATIVE_MOOD, {}).get("prezent"),
+    )
 
     return {
         "input": input_text,

@@ -46,7 +46,11 @@ class FormOut(BaseModel):
             "'-' means the form does not exist for that person -- verbecc's "
             "own sentinel for it, passed through rather than hidden. "
             "Impersonal verbs are the usual reason (e.g. 'a ninge', \"to "
-            "snow\", has no imperative)."
+            "snow\", has no imperative). In the synthesised conditional, "
+            "where there is no verbecc value to pass through, '-' is "
+            "mirrored from the same person's indicative present -- so "
+            "'a ninge' carries a conditional only where it has an "
+            "indicative, the third person singular."
         ),
     )
     pronoun: str | None = Field(

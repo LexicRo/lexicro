@@ -81,7 +81,7 @@ Each entry in a tense's array has:
 
 | field | type | notes |
 |---|---|---|
-| `form` | string | The inflected form, without its pronoun. The literal string `"-"` means the form does not exist for that person — verbecc's own sentinel, passed through rather than hidden. Impersonal verbs are the usual reason: *a ninge* ("to snow") has no imperative, so its `imperativ` entries read `"-"`. |
+| `form` | string | The inflected form, without its pronoun. The literal string `"-"` means the form does not exist for that person — verbecc's own sentinel, passed through rather than hidden. Impersonal verbs are the usual reason: *a ninge* ("to snow") has no imperative, so its `imperativ` entries read `"-"`. In the **synthesised `condițional`** there is no verbecc value to pass through, so `"-"` is **mirrored from the same person's `indicativ.prezent`**: *a ninge* has a third-person singular and nothing else, so only that person carries a conditional. Mirroring is per person, not per verb — *a ninge* has a 3sg but no 3pl. |
 | `pronoun` | string \| null | The pronoun this form takes (`eu`, `tu`, `el`, `ea`, `noi`, `voi`, `ei`, `ele`), or `null` for moods that take none — `infinitiv`, `gerunziu`, `participiu`. Present and `null`, not omitted, so you can rely on the key existing. |
 | `feats` | object | [Universal Features](https://universaldependencies.org/u/feat/), the same vocabulary `/analyze` uses: `Person` (`"1"`\|`"2"`\|`"3"`), `Number` (`"Sing"`\|`"Plur"`), and `Gender` (`"Masc"`\|`"Fem"`) on third person only. A feature that doesn't apply is absent from the object, not present with a null value. |
 | `source` | `"verbecc"` \| `"derived"` | Which system produced this specific form. See [below](#two-kinds-of-provenance). |

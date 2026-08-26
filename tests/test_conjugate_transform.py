@@ -292,6 +292,74 @@ def test_conditional_feats_do_not_share_identity_between_prezent_and_perfect():
         assert mood["prezent"][i]["feats"] is not mood["perfect"][i]["feats"]
 
 
+# --- OQ-021: impersonal verbs -------------------------------------------
+# verbecc marks a person that does not exist with the literal "-", and does so
+# for 267 of 6,864 Romanian verbs. `a ninge` has only a third-person singular:
+# every other slot of its indicative is "-". Synthesising all eight conditional
+# persons regardless produced "a\u0219 ninge" -- "I would snow".
+
+
+def _indicative_of(*absent_pronouns: str) -> list[dict]:
+    """A transformed indicativ.prezent with the named pronouns marked absent."""
+    return [
+        {
+            "form": "-" if pronoun in absent_pronouns else "ninge",
+            "pronoun": pronoun,
+            "feats": {},
+            "source": "verbecc",
+        }
+        for pronoun in ("eu", "tu", "el", "ea", "noi", "voi", "ei", "ele")
+    ]
+
+
+def test_conditional_mirrors_a_person_the_indicative_marks_absent():
+    mood = conditional_mood(
+        "ninge", "nins", _indicative_of("eu", "tu", "noi", "voi", "ei", "ele")
+    )
+    assert [e["form"] for e in mood["prezent"]] == [
+        "-",
+        "-",
+        "ar ninge",
+        "ar ninge",
+        "-",
+        "-",
+        "-",
+        "-",
+    ]
+
+
+def test_transform_mirrors_absent_persons_into_the_conditional_of_ninge():
+    result = transform(raw("ninge"), "a ninge")
+    conditional = result["moods"]["condi\u021bional"]["prezent"]
+    by_pronoun = {e["pronoun"]: e["form"] for e in conditional}
+    assert by_pronoun["eu"] == "-"
+    assert by_pronoun["ei"] == "-"
+    assert by_pronoun["el"] == "ar ninge"
+
+
+def test_transform_mirrors_absent_persons_into_the_conditional_perfect_too():
+    result = transform(raw("ninge"), "a ninge")
+    perfect = result["moods"]["condi\u021bional"]["perfect"]
+    by_pronoun = {e["pronoun"]: e["form"] for e in perfect}
+    assert by_pronoun["eu"] == "-"
+    assert by_pronoun["el"] == "ar fi nins"
+
+
+def test_transform_leaves_a_fully_personal_verb_with_all_eight_conditionals():
+    result = transform(raw("merge"), "a merge")
+    conditional = result["moods"]["condi\u021bional"]["prezent"]
+    assert [e["form"] for e in conditional] == [
+        "a\u0219 merge",
+        "ai merge",
+        "ar merge",
+        "ar merge",
+        "am merge",
+        "a\u021bi merge",
+        "ar merge",
+        "ar merge",
+    ]
+
+
 def test_notes_are_general_first_then_specific():
     result = notes()
     assert result[0]["scope"] == "all"
