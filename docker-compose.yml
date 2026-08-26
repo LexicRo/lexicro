@@ -37,6 +37,25 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # Without this the api container reports a bare `Up` while db reports
+    # `Up (healthy)`, so `docker compose ps` cannot say whether the API is
+    # actually serving -- which is precisely the question nobody could answer
+    # on 2026-08-26. Informational only: nothing depends on this condition.
+    #
+    # python rather than curl: the base image is python:slim and has no curl,
+    # and adding one for a healthcheck would mean an apt layer on every build.
+    # urlopen raises on any non-2xx, which is the behaviour wanted.
+    #
+    # start_period covers model load -- the API reads analyze-v1 off a read-only
+    # volume at startup, and failures during that window are not counted, so a
+    # slow boot does not flap the container into `unhealthy`.
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request,sys; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=5); sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
     restart: unless-stopped
 
 volumes:

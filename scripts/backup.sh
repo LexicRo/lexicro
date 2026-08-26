@@ -120,9 +120,20 @@ PRUNED="$(docker-compose exec -T "$DB_SERVICE" psql -U "$DB_USER" -d "$DB_NAME" 
 log "request_log: pruned ${PRUNED:-0} row(s) older than ${LOG_RETENTION_DAYS} days"
 
 # --- optional dead-man's switch ---------------------------------------------
-# If HEALTHCHECK_URL is set, ping it on success. If the backup stops running --
-# cron broken, disk full, host down -- the service notices the silence and
-# emails you. A backup you never check is a backup you do not have.
+# If BACKUP_HEALTHCHECK_URL is set, ping it on success. If the backup stops
+# running -- cron broken, disk full, host down -- the service notices the
+# silence and emails you. A backup you never check is a backup you do not have.
+#
+# This pings a check that monitors THE BACKUP, and nothing else. It stays green
+# through a total API outage, because nothing here asks the API anything. The
+# check it pings was named "LexicRo Health" until 2026-08-26, which invited
+# exactly that misreading; scripts/probe_api.sh is what watches the API.
+#
+# The variable was HEALTHCHECK_URL until 2026-08-26. An unqualified name stopped
+# being safe the moment a second check existed, so it is now qualified. The old
+# name is still honoured, and warns, so that renaming it in .env can happen
+# whenever -- getting this wrong silently stops the backup pinging, which is the
+# one failure this block exists to prevent.
 #
 # The URL is a capability: anyone holding it can mark this check healthy, which
 # would mask a backup that had silently stopped. It therefore lives in .env with
@@ -132,14 +143,21 @@ log "request_log: pruned ${PRUNED:-0} row(s) older than ${LOG_RETENTION_DAYS} da
 #
 # An env var set by the caller still wins, so an older inline-crontab line keeps
 # working unchanged.
-if [ -z "${HEALTHCHECK_URL:-}" ] && [ -r "${COMPOSE_DIR}/.env" ]; then
-    HEALTHCHECK_URL="$(get_env_value HEALTHCHECK_URL "${COMPOSE_DIR}/.env")"
+if [ -z "${BACKUP_HEALTHCHECK_URL:-}" ] && [ -r "${COMPOSE_DIR}/.env" ]; then
+    BACKUP_HEALTHCHECK_URL="$(get_env_value BACKUP_HEALTHCHECK_URL "${COMPOSE_DIR}/.env")"
+
+    # Fall back to the pre-2026-08-26 name rather than going quiet.
+    if [ -z "${BACKUP_HEALTHCHECK_URL:-}" ]; then
+        BACKUP_HEALTHCHECK_URL="$(get_env_value HEALTHCHECK_URL "${COMPOSE_DIR}/.env")"
+        [ -n "${BACKUP_HEALTHCHECK_URL:-}" ] && \
+            log "NOTE: using legacy HEALTHCHECK_URL from .env -- rename it to BACKUP_HEALTHCHECK_URL"
+    fi
 fi
 
-if [ -n "${HEALTHCHECK_URL:-}" ]; then
-    curl -fsS -m 10 --retry 3 "$HEALTHCHECK_URL" >/dev/null 2>&1 \
-        && log "pinged healthcheck" \
-        || log "WARNING: healthcheck ping failed"
+if [ -n "${BACKUP_HEALTHCHECK_URL:-}" ]; then
+    curl -fsS -m 10 --retry 3 "$BACKUP_HEALTHCHECK_URL" >/dev/null 2>&1 \
+        && log "pinged backup healthcheck" \
+        || log "WARNING: backup healthcheck ping failed"
 fi
 
 log "done"

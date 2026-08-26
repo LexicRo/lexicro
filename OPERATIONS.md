@@ -129,22 +129,52 @@ Both, given the price.
 
 The script cannot monitor the host it runs on. Use something external.
 
-**API uptime.** Any free uptime monitor (UptimeRobot, Better Stack, Hetzner's
-own) pointed at:
+**Two checks, watching two different things.** This distinction is the whole
+point and was got wrong until 2026-08-26, when a single check named *"LexicRo
+Health"* turned out to report only whether the backup had finished — it would
+have stayed green through a total API outage, and it went red for a backup
+problem while the API was serving normally.
 
-```
-https://api.lexicro.com/health
-```
+| check | pinged by | goes red when |
+|---|---|---|
+| **LexicRo nightly backup** | `scripts/backup.sh`, 03:17 daily | no verified dump was written last night |
+| **LexicRo API** | `scripts/probe_api.sh`, every 10 min | `https://api.lexicro.com/health` stops returning 200, **or** the host stops running cron |
 
-Five-minute interval, email alert. Five minutes of setup.
+Neither can speak for the other. Do not merge them, and do not name either one
+something that sounds like both.
 
-**Backups still running.** Create a check at healthchecks.io (free), then put
-its ping URL in `/opt/lexicro/.env` — **not** in the crontab line:
+**Set them up.** Create two checks at healthchecks.io (free), then put their
+ping URLs in `/opt/lexicro/.env` — **not** in the crontab lines:
 
 ```bash
-echo 'HEALTHCHECK_URL=https://hc-ping.com/your-uuid' >> /opt/lexicro/.env
-sudo bash /opt/lexicro/scripts/backup.sh    # confirm: "pinged healthcheck"
+echo 'BACKUP_HEALTHCHECK_URL=https://hc-ping.com/your-backup-uuid' >> /opt/lexicro/.env
+echo 'API_HEALTHCHECK_URL=https://hc-ping.com/your-api-uuid'       >> /opt/lexicro/.env
+sudo bash /opt/lexicro/scripts/backup.sh     # confirm: "pinged backup healthcheck"
+sudo bash /opt/lexicro/scripts/probe_api.sh  # confirm: "probe ok, pinged api healthcheck"
+sudo crontab -l                              # diff before installing -- see below
+sudo crontab /opt/lexicro/scripts/crontab
 ```
+
+Suggested check settings: the backup check on a 1-day period with a 2-hour
+grace; the API check on a 10-minute period with a **25-minute** grace, so one
+missed run does not page but two in a row do.
+
+`BACKUP_HEALTHCHECK_URL` was called `HEALTHCHECK_URL` before 2026-08-26. The old
+name still works and logs a note asking you to rename it — an unqualified name
+stopped being safe once a second check existed.
+
+**What the API check still cannot see.** `probe_api.sh` runs *on this host*, so
+it cannot tell "the API is down" from "this host's outbound network is broken",
+and it will not notice the API being unreachable from the wider internet while
+reachable from Nuremberg. A third-party poller (UptimeRobot, Better Stack,
+Hetzner's own) pointed at the same URL is the only real fix, and it is five
+minutes of setup if you want the belt as well as the braces.
+
+**And what a green API check does not prove.** `/health` is unauthenticated and
+touches no database: it shows the process is up, nginx is routing and the
+certificate is valid, but it would return 200 throughout a database failure.
+Deepening it is an open decision (lexicro-docs OQ-022) — until then, read a
+green tick as "serving", not as "healthy".
 
 `backup.sh` reads that one key out of `.env` at run time, so the scheduled line
 in `scripts/crontab` carries no secret and stays safe to paste anywhere. The URL
