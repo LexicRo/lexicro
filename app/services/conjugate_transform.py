@@ -315,6 +315,20 @@ _NOTES: tuple[dict, ...] = (
     {
         "scope": "imperativ",
         "code": "imperative_known_errors",
+        # The lemmas the message names in prose, given structurally so a
+        # caller can flag the affected forms without parsing English. The
+        # demo does exactly that: it marks the wrong form in the table
+        # rather than relying on a visitor reading a paragraph above it.
+        #
+        # A tuple, not a list: notes() copies each note shallowly, so a
+        # mutable value here would be shared with every caller.
+        #
+        # This list is ENUMERATED, not computed, and it must stay that way.
+        # The defect's signature -- a 2sg imperative equal to the 3sg
+        # present -- is also true of 'a c\u00e2nta' and 'a g\u0103si', which
+        # are correct. Anything deriving the set from the shape of the data
+        # will mark regular verbs as broken.
+        "verbs": ("merge", "trece", "t\u0103cea"),
         "message": (
             "The imperative has known residual errors in a small set of verbs: "
             "'a merge', 'a trece' and 'a t\u0103cea' are served their third "

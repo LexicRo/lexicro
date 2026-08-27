@@ -71,7 +71,7 @@ key and one daily quota.
 | field | type | notes |
 |---|---|---|
 | `input` | string | The verb you requested, echoed verbatim — with the `a` prefix if you sent it. |
-| `notes` | array | Source-quality disclosures, always present, general first. Safe to render verbatim. See [Known limitations](#known-limitations). |
+| `notes` | array | Source-quality disclosures, always present, general first. Safe to render verbatim. Each entry has a `scope` (`"all"`, or a mood name), a stable `code` you may rely on, and a `message` whose wording may be revised. The `imperative_known_errors` entry also carries **`verbs`** — the lemmas it is about, so you can flag the affected forms without parsing the message. See [Known limitations](#known-limitations). |
 | `verb.infinitive` | string | The verb as looked up, without the `a` prefix. |
 | `verb.provenance` | `"template"` \| `"predicted"` | Whether the conjugation library recognised this verb. See [below](#two-kinds-of-provenance). |
 | `verb.template` | string \| null | The library's internal name for the conjugation pattern used. Kept for support conversations about a specific wrong form — see [Diacritics](#diacritics) for why its spelling is the one exception to comma-below. |
@@ -187,6 +187,16 @@ verbs the correct imperative form depends on whether the verb is used
 transitively — `treci!` versus `trece-mă!` — and a bare verb name doesn't
 tell you which sense was meant, so the returned form may not be the one your
 context needs.
+
+The three verbs are also listed in that note's `verbs` field, so you can mark
+the affected forms in your own interface rather than relying on a reader
+noticing a caveat elsewhere on the page. **Do not try to detect them from the
+shape of the data instead** — the defect's signature, a second-person singular
+imperative identical to the third-person singular present, is equally true of
+*a cânta* (`cântă`) and *a găsi* (`găsește`), which are perfectly correct.
+The set is enumerated because it cannot be computed.
+
+When the upstream fix lands, the list shrinks and this note eventually goes.
 
 These are reported upstream to the library maintainers. LexicRo relays the
 forms verbecc produces rather than substituting its own corrections, so
