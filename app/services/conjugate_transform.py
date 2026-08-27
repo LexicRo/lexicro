@@ -19,10 +19,12 @@ The rules implemented here are specified in lexicro-docs; the short version:
 from __future__ import annotations
 
 # verbecc's Romanian data writes `s` with the modern comma-below (839
-# occurrences) and `t` with the legacy cedilla (2205). /analyze emits
-# comma-below exclusively, and two endpoints of one API must not spell
-# Romanian two ways. The s-cedilla mapping never fires against 2.0.2 and is
-# kept because an upstream data edit could reintroduce it at any time.
+# occurrences in 2.0.3's conjugations-ro.xml) and `t` with the legacy cedilla
+# (2204 -- one fewer than 2.0.2, which the `a vrea` correction accounts for).
+# /analyze emits comma-below exclusively, and two endpoints of one API must
+# not spell Romanian two ways. The s-cedilla mapping still never fires --
+# re-counted against 2.0.3, which contains no U+015F at all -- and is kept
+# because an upstream data edit could reintroduce it at any time.
 _DIACRITICS = str.maketrans({"\u015f": "\u0219", "\u0163": "\u021b"})
 
 
