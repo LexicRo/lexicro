@@ -667,3 +667,42 @@ def test_conjugate_verb_still_raises_plain_value_error_for_an_unknown_verb():
     with pytest.raises(ValueError) as excinfo:
         conjugate_verb("asdfgh")
     assert not isinstance(excinfo.value, EmptyVerbError)
+
+
+def test_the_imperative_note_names_the_verbs_it_is_about():
+    """The note said "a small set of verbs" and then named them in prose.
+
+    A caller that wants to flag the affected forms -- the demo does -- had to
+    parse English to find out which. The lemmas are now a field.
+    """
+    note = [n for n in notes() if n["code"] == "imperative_known_errors"][0]
+    assert note["verbs"] == ("merge", "trece", "t\u0103cea")
+
+
+def test_the_verbs_the_note_names_are_still_actually_wrong():
+    """The list is a claim about upstream, and this is what keeps it honest.
+
+    Each named verb is asserted to still show the defect's signature: its 2sg
+    imperative is its 3sg indicative present, where a real 2sg belongs. When
+    verbecc#50 is fixed for any of them, THIS TEST FAILS -- which is the
+    point. Do not "repair" it by trimming the assertion; drop the verb from
+    the note, and if the list empties, delete the note.
+
+    Note the signature alone does NOT identify the defect: `a c\u00e2nta` and
+    `a g\u0103si` have 2sg imperatives equal to their 3sg present and are
+    perfectly correct. That is exactly why the list is enumerated rather than
+    computed, here and in any caller.
+    """
+    note = [n for n in notes() if n["code"] == "imperative_known_errors"][0]
+    for verb in note["verbs"]:
+        raw_data = raw(verb)
+        result = transform(raw_data, verb)
+        imperative = [
+            e for e in result["moods"]["imperativ"]["imperativ"]
+            if e["pronoun"] == "tu"
+        ][0]["form"]
+        present = [
+            e for e in result["moods"]["indicativ"]["prezent"]
+            if e["pronoun"] == "el"
+        ][0]["form"]
+        assert imperative == present, f"{verb} may have been fixed upstream"
