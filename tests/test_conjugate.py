@@ -134,3 +134,30 @@ def test_the_guide_documents_the_limitations_rather_than_hiding_them(client):
     assert "min\u021bi" in body          # the indicative defect
     assert "transitiv" in body.lower()   # the imperative ambiguity
     assert "verbecc" in body
+
+
+def test_the_imperative_note_carries_its_verbs_over_the_wire(client):
+    """The transform-level test for this passed while the field never reached
+    a caller.
+
+    `notes()` returned `verbs`, and `NoteOut` did not declare it, so the
+    response_model dropped it silently -- no error, no warning, just an
+    absent key. The demo read the field, found nothing, and flagged nothing.
+
+    This is the layer that broke, and the one this file exists for: the
+    things only the HTTP boundary can break, including the fields the schema
+    promises. A model asserted through the function that builds it is not
+    asserted at all.
+    """
+    notes = client.get("/conjugate/merge").json()["notes"]
+    imperative = [n for n in notes if n["code"] == "imperative_known_errors"][0]
+    assert imperative["verbs"] == ["merge", "trece", "t\u0103cea"]
+
+
+def test_the_general_note_does_not_carry_verbs(client):
+    """`verbs` is specific to the imperative note, and a caller iterating
+    notes must be able to tell them apart by absence rather than by an empty
+    list that looks like "no verbs are affected"."""
+    notes = client.get("/conjugate/merge").json()["notes"]
+    general = [n for n in notes if n["code"] == "upstream_unverified"][0]
+    assert general.get("verbs") is None

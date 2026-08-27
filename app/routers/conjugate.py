@@ -36,6 +36,20 @@ class NoteOut(BaseModel):
         ),
     )
     message: str = Field(..., description="Human-readable text, safe to display verbatim.")
+    verbs: list[str] | None = Field(
+        None,
+        description=(
+            "The lemmas this note is about, when it is about a specific set "
+            "of them. Present on `imperative_known_errors`; absent on notes "
+            "that apply generally -- absent rather than empty, so a caller "
+            "can tell 'this note names no verbs' from 'no verbs are "
+            "affected'. Supplied so a caller can flag the affected forms "
+            "without parsing `message`. Do not infer the set from the shape "
+            "of the data instead: a second person singular imperative equal "
+            "to the third person singular present is the defect's signature "
+            "AND the correct behaviour of many regular verbs."
+        ),
+    )
 
 
 class FormOut(BaseModel):
