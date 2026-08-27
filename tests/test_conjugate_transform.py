@@ -376,12 +376,13 @@ def test_the_general_note_names_a_defect_outside_the_imperative():
     # moods, and the min\u021bi indicative proved that certification false. If
     # this assertion is ever "simplified" away, read the ADR before doing it.
     #
-    # verbecc 2.0.3 fixed both defects the note names, so it now cites them as
-    # history rather than as live errors -- deliberately. The argument does not
-    # depend on a current example: both were found by spot check, so having no
-    # current example says nothing about what an audit would turn up. Do not
-    # drop the naming just because the defects are fixed; that would leave the
-    # note asserting only that we are unsure, which is what the ADR rejected.
+    # 2.0.3 fixed both defects the note names, so it now cites them as history
+    # rather than as live errors. That is permitted, and required to be
+    # explicit, by ADR-0026 Amendment 1 -- read it before changing this. The
+    # short version: the citation proves the caveat is not boilerplate, and a
+    # fixed defect proves that as well as a live one, because both were found
+    # by spot check rather than by audit. Dropping the naming leaves the note
+    # asserting only that we are unsure, which the ADR rejects.
     general = notes()[0]["message"]
     assert "min\u021bi" in general
     assert "indicative" in general.lower()
