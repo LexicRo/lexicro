@@ -71,7 +71,7 @@ key and one daily quota.
 | field | type | notes |
 |---|---|---|
 | `input` | string | The verb you requested, echoed verbatim — with the `a` prefix if you sent it. |
-| `notes` | array | Source-quality disclosures, always present, general first. Safe to render verbatim. Each entry has a `scope` (`"all"`, or a mood name), a stable `code` you may rely on, and a `message` whose wording may be revised. The `imperative_known_errors` entry also carries **`verbs`** — the lemmas it is about, so you can flag the affected forms without parsing the message. See [Known limitations](#known-limitations). |
+| `notes` | array | Source-quality disclosures, always present, general first. Safe to render verbatim. Each entry has a `scope` (`"all"`, or a mood name), a stable `code` you may rely on, and a `message` whose wording may be revised. The `imperative_known_errors` entry also carries **`verbs`** — the lemmas it is about — and `paradigm_contradiction` carries **`tenses`**, the `mood/tense` pairs it is about, so you can flag the affected forms without parsing the message. See [Known limitations](#known-limitations). |
 | `verb.infinitive` | string | The verb as looked up, without the `a` prefix. |
 | `verb.provenance` | `"template"` \| `"predicted"` | Whether the conjugation library recognised this verb. See [below](#two-kinds-of-provenance). |
 | `verb.template` | string \| null | The library's internal name for the conjugation pattern used. Kept for support conversations about a specific wrong form — see [Diacritics](#diacritics) for why its spelling is the one exception to comma-below. |
@@ -197,6 +197,22 @@ imperative identical to the third-person singular present, is equally true of
 The set is enumerated because it cannot be computed.
 
 When the upstream fix lands, the list shrinks and this note eventually goes.
+
+### When a verb's paradigm contradicts itself
+
+Some verbs mark persons as having no form in the present tense while other tenses supply forms
+for those same persons. *A ninge* ("to snow") gives `-` for every person but the third singular
+in `indicativ prezent`, then returns `eu am nins` in `indicativ perfect-compus`.
+
+When that happens the response carries a `paradigm_contradiction` note, listing the affected
+`mood/tense` pairs in its `tenses` field. It is computed per response, so it appears only on
+verbs that actually exhibit it.
+
+**The note does not tell you which side is wrong, because we do not know.** Both readings occur
+among the affected verbs: *a curge* really is third-person-only, so its `eu am curs` is the
+error — while *a aporta* is an ordinary transitive verb wrongly marked third-person-only, so
+there the *present* is the error and `eu am aportat` is correct. A caller who needs to choose
+must do so per verb; a caller who only needs to warn a user can render the note.
 
 These are reported upstream to the library maintainers. LexicRo relays the
 forms verbecc produces rather than substituting its own corrections, so

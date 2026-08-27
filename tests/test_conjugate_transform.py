@@ -706,3 +706,52 @@ def test_the_verbs_the_note_names_are_still_actually_wrong():
             if e["pronoun"] == "el"
         ][0]["form"]
         assert imperative == present, f"{verb} may have been fixed upstream"
+
+
+def test_a_verb_whose_paradigm_contradicts_itself_gets_a_note():
+    """ADR-0029. `a ninge` says no first person in the present and then
+    supplies `eu am nins` in the compound tenses. One of the two is wrong.
+
+    Computed per response, never enumerated: there are 267 defective lemmas
+    and shipping a list of them would be a second thing to maintain. It also
+    self-heals -- when verbecc#53 lands, the compound tenses carry the
+    sentinel too, the condition stops holding, and the note stops appearing.
+    """
+    result = transform(raw("ninge"), "ninge")
+    note = [n for n in result["notes"] if n["code"] == "paradigm_contradiction"]
+    assert note, "expected a contradiction note for an impersonal verb"
+    assert "indicativ/perfect-compus" in note[0]["tenses"]
+
+
+def test_the_note_does_not_say_which_side_is_wrong():
+    """The check that produced ADR-0029 found the set is mixed: `curge` is
+    genuinely third-person-only, so its compound is wrong, while `aprova` is
+    an ordinary transitive whose PRESENT is wrong -- and its two templates
+    cover 146 of the 267.
+
+    So a note asserting the compound forms are unattested would be false for
+    most verbs it fires on. It reports the disagreement instead. If this
+    assertion is ever "tightened" into a claim, read the ADR first.
+    """
+    message = [
+        n for n in transform(raw("ninge"), "ninge")["notes"]
+        if n["code"] == "paradigm_contradiction"
+    ][0]["message"]
+    lowered = message.lower()
+    for forbidden in ("not attested", "incorrect", "is wrong", "does not exist"):
+        assert forbidden not in lowered, f"note adjudicates: {forbidden!r}"
+
+
+def test_an_ordinary_verb_gets_no_contradiction_note():
+    for verb in ("merge", "c\u00e2nta"):
+        codes = [n["code"] for n in transform(raw(verb), verb)["notes"]]
+        assert "paradigm_contradiction" not in codes, verb
+
+
+def test_the_synthesised_conditional_never_triggers_the_note():
+    """OQ-021 made the conditional mirror the indicative present's sentinel,
+    so LexicRo's own mood cannot be the thing that contradicts it. If this
+    fails, that mirroring has regressed."""
+    result = transform(raw("ninge"), "ninge")
+    note = [n for n in result["notes"] if n["code"] == "paradigm_contradiction"][0]
+    assert not [t for t in note["tenses"] if t.startswith("condi")]

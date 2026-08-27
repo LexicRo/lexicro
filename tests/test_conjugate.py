@@ -161,3 +161,20 @@ def test_the_general_note_does_not_carry_verbs(client):
     notes = client.get("/conjugate/merge").json()["notes"]
     general = [n for n in notes if n["code"] == "upstream_unverified"][0]
     assert general.get("verbs") is None
+
+
+def test_the_contradiction_note_reaches_the_wire(client):
+    """ADR-0029's note, asserted at the boundary that dropped `verbs` in
+    0.6.3. A field the transform produces and NoteOut does not declare is
+    filtered out silently -- no error, just an absent key -- so a note is not
+    shipped until a test has seen it come back over HTTP.
+    """
+    data = client.get("/conjugate/ninge").json()
+    note = [n for n in data["notes"] if n["code"] == "paradigm_contradiction"]
+    assert note, "expected the contradiction note"
+    assert "indicativ/perfect-compus" in note[0]["tenses"]
+
+
+def test_an_ordinary_verb_carries_only_the_standing_notes(client):
+    codes = [n["code"] for n in client.get("/conjugate/merge").json()["notes"]]
+    assert codes == ["upstream_unverified", "imperative_known_errors"]
