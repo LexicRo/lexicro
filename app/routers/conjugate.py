@@ -36,6 +36,15 @@ class NoteOut(BaseModel):
         ),
     )
     message: str = Field(..., description="Human-readable text, safe to display verbatim.")
+    tenses: list[str] | None = Field(
+        None,
+        description=(
+            "The `mood/tense` pairs this note is about, when it is about "
+            "specific ones -- e.g. `indicativ/perfect-compus`. Present on "
+            "`paradigm_contradiction`; absent otherwise. Supplied so a caller "
+            "can mark the affected tenses without parsing `message`."
+        ),
+    )
     verbs: list[str] | None = Field(
         None,
         description=(

@@ -352,6 +352,70 @@ _INDICATIVE_MOOD = "indicativ"
 _CONDITIONAL_MOOD = "condi\u021bional"
 
 
+
+def paradigm_contradiction(moods: dict) -> dict | None:
+    """A note for a verb whose own paradigm disagrees about which persons exist.
+
+    `a ninge` marks every person but the third singular non-existent in
+    `indicativ.prezent`, and its compound tenses then supply all of them --
+    `eu am nins`, "I have snowed". The cause is upstream (verbecc#53): a
+    compound tense takes its person set from the AUXILIARY verb, so the
+    primary verb's sentinels are never read.
+
+    **This states the disagreement and does not settle it**, which is
+    ADR-0029's central ruling and is not caution. The 267 affected lemmas are
+    not one kind of verb. `curge`, `ninge` and `ploua` are genuinely
+    third-person-only, so the compound tense is the wrong side. But `aprova`,
+    `aporta`, `abeceda` and `agrega` are ordinary transitives wrongly marked
+    third-person-only -- their PRESENT is the wrong side -- and their two
+    templates cover 146 of the 267. A note claiming the compound forms are
+    unattested would be false for most verbs it fired on.
+
+    Computed per response rather than enumerated, so nothing needs
+    maintaining and it **self-heals**: when #53 lands, the compound tenses
+    carry the sentinel too, the condition stops holding, and the note stops
+    appearing. That is the opposite of the choice made for
+    `imperative_known_errors`, whose verbs MUST be enumerated because that
+    defect's signature is indistinguishable from correct verbs.
+
+    Returns None for the ordinary case, which is almost every verb.
+    """
+    present = moods.get(_INDICATIVE_MOOD, {}).get("prezent") or []
+    absent = {
+        entry["pronoun"]
+        for entry in present
+        if entry["form"] == _NONEXISTENT_FORM and entry["pronoun"]
+    }
+    if not absent:
+        return None
+
+    # Any tense, not a hardcoded list of compound ones. The contradiction is
+    # defined by the data disagreeing with itself, so naming the tenses where
+    # it shows up would be a second thing to keep current.
+    contradicting = sorted(
+        f"{mood}/{tense}"
+        for mood, tenses in moods.items()
+        for tense, entries in tenses.items()
+        if not (mood == _INDICATIVE_MOOD and tense == "prezent")
+        for entry in entries
+        if entry["pronoun"] in absent and entry["form"] != _NONEXISTENT_FORM
+    )
+    if not contradicting:
+        return None
+
+    return {
+        "scope": "all",
+        "code": "paradigm_contradiction",
+        "message": (
+            "This verb's present tense marks some persons as having no form, "
+            "while other tenses supply forms for those same persons. The two "
+            "disagree, and this response cannot tell you which of them to "
+            "believe: among the verbs affected, both readings occur."
+        ),
+        "tenses": tuple(dict.fromkeys(contradicting)),
+    }
+
+
 def transform(raw: dict, input_text: str) -> dict:
     """verbecc's raw conjugation dict as LexicRo's documented response."""
     verb = raw["verb"]
@@ -405,9 +469,14 @@ def transform(raw: dict, input_text: str) -> dict:
         moods.get(_INDICATIVE_MOOD, {}).get("prezent"),
     )
 
+    response_notes = notes()
+    contradiction = paradigm_contradiction(moods)
+    if contradiction:
+        response_notes.append(contradiction)
+
     return {
         "input": input_text,
-        "notes": notes(),
+        "notes": response_notes,
         "verb": {
             "infinitive": infinitive,
             # `predicted` is verbecc's word for "I did not know this verb, so I
