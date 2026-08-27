@@ -373,8 +373,15 @@ def test_notes_carry_stable_codes():
 
 def test_the_general_note_names_a_defect_outside_the_imperative():
     # ADR-0026: an imperative-only caveat implicitly certifies the other seven
-    # moods, and the min\u021bi indicative proves that certification false. If
+    # moods, and the min\u021bi indicative proved that certification false. If
     # this assertion is ever "simplified" away, read the ADR before doing it.
+    #
+    # verbecc 2.0.3 fixed both defects the note names, so it now cites them as
+    # history rather than as live errors -- deliberately. The argument does not
+    # depend on a current example: both were found by spot check, so having no
+    # current example says nothing about what an audit would turn up. Do not
+    # drop the naming just because the defects are fixed; that would leave the
+    # note asserting only that we are unsure, which is what the ADR rejected.
     general = notes()[0]["message"]
     assert "min\u021bi" in general
     assert "indicative" in general.lower()
@@ -563,19 +570,27 @@ def test_transform_derives_the_negative_imperative_2sg_for_further_corrupted_ver
         assert second_person_singular["source"] == "derived"
 
 
-def test_transform_leaves_the_affirmative_imperative_untouched_for_a_corrupt_verb():
+def test_transform_leaves_the_affirmative_imperative_untouched_for_a_wrong_verb():
     """The disclosure rule is deliberately asymmetric: the negative
-    imperative 2sg is composed when verbecc's own template is corrupt, but
-    the affirmative imperative is passed through uncorrected, non-word and
-    all. `a avea`'s affirmative 2sg imperative is "aai" -- the same broken
-    template that also corrupts the negative -- and it must still read that
-    way, `source: "verbecc"`, not silently fixed. This is exactly the kind
-    of asymmetry a later "tidy-up" would erase without a test pinning it.
+    imperative 2sg is composed from the paradigm, but the affirmative
+    imperative is passed through uncorrected, wrong and all. This is exactly
+    the kind of asymmetry a later "tidy-up" would erase without a test
+    pinning it.
+
+    Until 2026-08-27 the vehicle was `a avea`, whose affirmative 2sg was the
+    non-word "aai". verbecc 2.0.3 fixed that template, so the test moved to
+    `a merge` -- verbecc#50, still open -- which serves "merge" where correct
+    Romanian is "mergi". Wrong rather than gibberish, but wrong in the same
+    way for this rule's purposes: LexicRo must not silently fix it.
+
+    If verbecc#50 closes, this test needs a new vehicle, not a new assertion.
+    Pick whatever affirmative imperative is wrong at that point; if none is,
+    say so here and pin the pass-through with a correct verb instead.
     """
-    result = transform(raw("avea"), "avea")
+    result = transform(raw("merge"), "merge")
     affirmativ = result["moods"]["imperativ"]["imperativ"]
     second_person_singular = [e for e in affirmativ if e["pronoun"] == "tu"][0]
-    assert second_person_singular["form"] == "aai"
+    assert second_person_singular["form"] == "merge"
     assert second_person_singular["source"] == "verbecc"
 
 
@@ -592,8 +607,11 @@ def test_transform_composes_the_negative_imperative_2sg_only_where_intended():
     - ninge: impersonal, has no imperative. verbecc marks every person with
       the "-" sentinel, and composition must leave it alone rather than
       fabricate "nu ninge" for a verb that has no imperative at all.
-    - face: a corrupted template ("nu fudrir;odrir"). Composition must
-      replace it with "nu face", `source: "derived"`.
+    - face: a template that was corrupted ("nu fudrir;odrir") until verbecc
+      2.0.3 corrected it. Composition must yield "nu face",
+      `source: "derived"` -- which it now does by agreeing with verbecc
+      rather than by overriding it. The assertion is unchanged on purpose:
+      the rule's output must not depend on which of those two it was.
     """
     merge_raw = raw("merge")
     merge_expected_form = next(

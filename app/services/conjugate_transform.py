@@ -99,23 +99,26 @@ _IMPERATIVE_SLOTS = (("tu", "Sing"), ("voi", "Plur"))
 
 
 def imperative_entries(raw_entries: list[dict]) -> list[dict]:
-    """The two real imperative entries, out of the sixteen verbecc returns.
+    """The two real imperative entries, whatever shape verbecc delivers them in.
 
-    verbecc 2.0.2 emits both forms crossed with all eight pronouns -- an
-    imperative for `eu` and `noi`, which Romanian does not have. The cause is a
-    one-line mapping error upstream (Romanian is pointed at the Italian
-    imperative person list), which also leaves `p` and `n` unset on every
-    entry. Reported upstream; not corrected here.
+    **On the pinned 2.0.3 the typed branch is the live one.** verbecc 2.0.2
+    emitted both forms crossed with all eight pronouns -- an imperative for
+    `eu` and `noi`, which Romanian does not have -- because Romanian was
+    pointed at the Italian imperative person list, which also left `p` and `n`
+    unset on every entry. That was reported upstream and fixed in 2.0.3
+    (verbecc PR #47): entries now arrive correctly typed, two of them.
 
-    Filtering on `pr in ("tu", "voi")` would return FOUR entries, because both
-    forms appear under both pronouns. Slicing on a single pronoun instead
-    de-duplicates the eight-fold repetition and leaves the distinct forms in
-    order: first 2sg, second 2pl.
+    The untyped branch below is therefore dormant, and is kept deliberately.
+    It is what makes the pin reversible, and the eight-fold shape is not
+    guaranteed gone for good. Under it, filtering on `pr in ("tu", "voi")`
+    would return FOUR entries, because both forms appear under both pronouns;
+    slicing on a single pronoun de-duplicates the repetition and leaves the
+    distinct forms in order: first 2sg, second 2pl. That same slice would find
+    only one entry against typed input, which is why the typed shape is
+    preferred when present.
 
-    Once upstream fixes the mapping the entries arrive correctly typed and
-    there are only two of them, at which point the slice would find one. So the
-    typed shape is preferred when present. Both paths are tested; do not
-    simplify this to either branch alone, and do not make it positional.
+    Both paths are tested; do not simplify this to either branch alone, and do
+    not make it positional.
 
     In the typed branch, each entry's slot is decided by its own `n` (via the
     existing `_NUMBER` map), never by input order or a sort. An entry whose
@@ -179,10 +182,12 @@ def conditional_mood(
     prezent = auxiliary + infinitive.  perfect = auxiliary + "fi" + participle.
 
     `infinitive` MUST come from verbecc's `verb.infinitive` -- the looked-up
-    lemma -- and never from the `infinitiv` mood's generated form. The two
-    differ: a corrupted template makes the mood's version of `a face` read
-    "fudrir;odrir", and deriving from it would ship "a\u0219 fudrir;odrir"
-    stamped `source: "derived"`.
+    lemma -- and never from the `infinitiv` mood's generated form. The two can
+    differ: in 2.0.2 a corrupted template made the mood's version of `a face`
+    read "fudrir;odrir", and deriving from it would have shipped
+    "a\u0219 fudrir;odrir" stamped `source: "derived"`. That template was
+    fixed in 2.0.3, but the lemma remains the right source -- it is the datum
+    verbecc looked up, rather than one it generated.
 
     Every form here is `derived`. Provenance is inherited, not reset: a
     conditional built from a predicted infinitive is a guess on a guess, and
@@ -244,11 +249,14 @@ def compose_negative_imperative(negativ_entries: list[dict], infinitive: str) ->
     """Overwrite the negative imperative 2sg entry in place, composed rather
     than trusted from verbecc.
 
-    The `contraf:ace` template is corrupted in a second place besides the
-    `infinitiv` mood: verbecc's `imperativ.negativ` 2sg entry is generated
-    from the same broken pipeline, so `a face` and its family come out as
-    "nu fudrir;odrir" there too. The same defect also hits `a avea` ("nu
-    aai") and `a vrea` ("nu eni") via different corrupted templates.
+    This began as a defence against corrupted templates: in 2.0.2 verbecc's
+    `imperativ.negativ` 2sg was generated from the same broken pipeline as the
+    `infinitiv` mood, so `a face` and its family came out as
+    "nu fudrir;odrir", `a avea` as "nu aai" and `a vrea` as "nu eni".
+    **Those templates were corrected upstream in 2.0.3, so the rule no longer
+    has a known defect to cover.** It is kept because its justification never
+    depended on them: it is a paradigm, not a repair, and it fires for every
+    verb rather than for a list of broken ones.
 
     Romanian's negative imperative 2sg is invariantly "nu" + infinitive --
     there is no verb where it legitimately differs from that paradigm -- so
@@ -293,23 +301,26 @@ _NOTES: tuple[dict, ...] = (
         "scope": "all",
         "code": "upstream_unverified",
         "message": (
-            "Forms come from verbecc 2.0.2 and are not exhaustively verified. "
-            "Known errors exist outside the imperative -- e.g. the indicative "
-            "present of 'a min\u021bi' returns 'eu mit' where correct Romanian "
-            "is 'eu mint'."
+            "Forms come from verbecc 2.0.3 and are not exhaustively verified. "
+            "Two defects outside the imperative -- the indicative present of "
+            "'a min\u021bi', and the infinitive of 'a face' -- were reported "
+            "upstream and corrected in 2.0.3. Both surfaced from spot checks "
+            "rather than an audit, and the data has not been audited as a "
+            "whole, so the absence of a current example is not evidence that "
+            "none remain."
         ),
     },
     {
         "scope": "imperativ",
         "code": "imperative_known_errors",
         "message": (
-            "The imperative has known residual errors in a small set of verbs. "
-            "Some are subtly wrong (e.g. 'merge' returns 'merge' where correct "
-            "is 'mergi'); a few are outright non-words -- e.g. 'a avea' "
-            "returns 'aai' (2sg) and 'ae\u021bi' (2pl), and 'a vrea' returns "
-            "'ino' (2sg) and 'eni\u021bi' (2pl). Separately, for some verbs "
-            "the form varies by transitivity -- 'treci!' vs 'trece-m\u0103!' "
-            "-- so a bare verb cannot determine which was meant."
+            "The imperative has known residual errors in a small set of verbs: "
+            "'a merge', 'a trece' and 'a t\u0103cea' are served their third "
+            "person singular where a second person imperative belongs -- "
+            "'merge' where correct Romanian is 'mergi'. Separately, for some "
+            "verbs the form varies by transitivity -- 'treci!' vs "
+            "'trece-m\u0103!' -- so a bare verb cannot determine which was "
+            "meant."
         ),
     },
 )
@@ -343,14 +354,17 @@ def transform(raw: dict, input_text: str) -> dict:
                     expanded for entry in entries for expanded in expand(entry)
                 ]
 
-    # The `infinitiv` mood is generated from the template, and one Romanian
-    # template is corrupted with a Spanish string -- `a face` and its family
-    # come out as "fudrir;odrir". `verb.infinitive` is the looked-up lemma and
-    # is intact, so it serves the same datum from the same source.
+    # The `infinitiv` mood is generated from the template. Under 2.0.2 one
+    # Romanian template was corrupted with a Spanish string, so `a face` and
+    # its family came out as "fudrir;odrir"; `verb.infinitive` is the
+    # looked-up lemma, was intact, and serves the same datum from the same
+    # source. The template was corrected upstream in 2.0.3 and the two copies
+    # now agree, which makes this a no-op rather than a fix -- but the lemma
+    # stays the source, because generated data is the copy that broke.
     #
     # This is not a correction of verbecc's Romanian. LexicRo does not make
-    # those. It is choosing the uncorrupted of two copies verbecc itself
-    # supplies, which is why `source` stays "verbecc".
+    # those. It is choosing between two copies verbecc itself supplies, which
+    # is why `source` stays "verbecc".
     moods["infinitiv"] = {
         "afirmativ": [
             {

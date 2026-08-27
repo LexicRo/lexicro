@@ -86,20 +86,41 @@ def test_no_legacy_cedilla_in_forms_or_mood_names(client):
     assert "\u0163" not in body
 
 
-def test_minti_still_returns_the_upstream_defect(client):
-    """Characterisation test. Pins a defect we deliberately did not fix.
+def test_minti_returns_the_corrected_present(client):
+    """The defect this test used to pin was fixed upstream in verbecc 2.0.3.
 
-    verbecc's present tense of `a min\u021bi` is wrong -- "eu mit" for "eu
-    mint". ADR-0026 chose to report it upstream rather than correct it here.
-
-    WHEN THIS TEST FAILS, THAT IS GOOD NEWS: upstream has fixed it. Do not
-    "repair" the test. Move the verbecc pin, then re-scope the imperative note
-    in conjugate_transform.py to whatever is still wrong. The general
-    `upstream_unverified` note stays regardless -- see the ADR.
+    Until 2026-08-27 this asserted the opposite -- that `a min\u021bi` returned
+    "eu mit" -- as a characterisation test under ADR-0026. It failed when the
+    pin moved, which is what it was there to do. Kept, inverted, so that a
+    rollback of the pin is a test failure rather than a silent regression in
+    what callers are served.
     """
     data = client.get("/conjugate/min\u021bi").json()
     forms = [e["form"] for e in data["moods"]["indicativ"]["prezent"]]
-    assert "mit" in forms, "verbecc may have fixed the dezmi:n\u0163i template"
+    assert "mint" in forms
+    assert "mit" not in forms
+
+
+def test_merge_still_returns_the_upstream_imperative_defect(client):
+    """Characterisation test. Pins a defect we deliberately did not fix.
+
+    verbecc serves the third person singular where `a merge`'s second person
+    imperative belongs -- "merge" for "mergi" -- and likewise for `a trece`
+    and `a t\u0103cea`. Reported as verbecc#50, which is open: the fix needs a
+    judgement on Romanian that the maintainer has said he cannot make. ADR-0026
+    chose to disclose rather than correct, and ADR-0027 decided explicitly not
+    to wait on this one.
+
+    WHEN THIS TEST FAILS, THAT IS GOOD NEWS: upstream has fixed it. Do not
+    "repair" the test. Move the verbecc pin, then re-scope the
+    `imperative_known_errors` note in conjugate_transform.py -- and the
+    Known limitations section of docs/conjugate.md -- to whatever is still
+    wrong. The general `upstream_unverified` note stays regardless.
+    """
+    data = client.get("/conjugate/merge").json()
+    affirmativ = data["moods"]["imperativ"]["imperativ"]
+    second_person_singular = [e for e in affirmativ if e["pronoun"] == "tu"][0]
+    assert second_person_singular["form"] == "merge", "verbecc#50 may be fixed"
 
 
 def test_the_conjugate_guide_is_served(client):
