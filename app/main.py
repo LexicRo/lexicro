@@ -13,7 +13,7 @@ import asyncpg
 from sqlalchemy import text
 from sqlalchemy.exc import ProgrammingError
 
-from app.database import AsyncSessionLocal
+from app.database import AsyncSessionLocal, database_ok
 from app.schema_state import diff, discover
 
 logger = logging.getLogger("lexicro.schema")
@@ -152,5 +152,28 @@ app.include_router(keys_router)
 
 @app.get("/health", tags=["System"])
 async def health_check():
-    """Returns API health status."""
-    return {"status": "ok", "version": __version__}
+    """Liveness plus a bounded database round-trip (ADR-0028).
+
+    **The status code is the alert.** `scripts/probe_api.sh` runs every ten
+    minutes and pings its healthchecks.io dead-man's switch only on a 2xx
+    (`curl -f`), so returning 200 with a sad-looking body would leave the
+    check green through a database outage -- which is exactly the OQ-022
+    part 3 defect, not a fix for it. 503 makes the existing probe and the
+    container healthcheck meaningful without touching either.
+
+    Both bodies carry the same keys, `version` included: a monitor should not
+    need two parsers for one endpoint, and knowing WHICH build is failing is
+    most of the value of asking during an incident.
+
+    This still does not prove the API can serve a keyed request -- see
+    ADR-0028 for what was deliberately left out and why.
+    """
+    ok = await database_ok()
+    return UTF8JSONResponse(
+        status_code=200 if ok else 503,
+        content={
+            "status": "ok" if ok else "degraded",
+            "database": "ok" if ok else "unreachable",
+            "version": __version__,
+        },
+    )

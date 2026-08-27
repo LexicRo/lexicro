@@ -170,11 +170,23 @@ reachable from Nuremberg. A third-party poller (UptimeRobot, Better Stack,
 Hetzner's own) pointed at the same URL is the only real fix, and it is five
 minutes of setup if you want the belt as well as the braces.
 
-**And what a green API check does not prove.** `/health` is unauthenticated and
-touches no database: it shows the process is up, nginx is routing and the
-certificate is valid, but it would return 200 throughout a database failure.
-Deepening it is an open decision (lexicro-docs OQ-022) — until then, read a
-green tick as "serving", not as "healthy".
+**And what a green API check does not prove.** `/health` is unauthenticated. As
+of 0.6.2 it makes a bounded `SELECT 1` and returns **503** with
+`{"status": "degraded", "database": "unreachable"}` when that fails, so a green
+tick now means the process is up, nginx is routing, the certificate is valid
+**and** the connection pool can reach Postgres (ADR-0028, closing OQ-022).
+
+It still does not prove the API can serve a **keyed** request. Authentication
+and the daily quota read `api_keys` through the rate limiter, and nothing in
+this probe exercises that path — deliberately, because doing so would cost
+quota, put a working key in another place, and pollute `request_log` with
+synthetic traffic. Read a green tick as "serving, and the database answers",
+not as "everything works".
+
+**A red API check can now mean the database rather than the API.** Curl the
+endpoint before assuming the container is down — a 503 carrying
+`"database": "unreachable"` is a database problem with a healthy process, and
+`docker compose ps` will show `api` as `unhealthy` for the same reason.
 
 `backup.sh` reads that one key out of `.env` at run time, so the scheduled line
 in `scripts/crontab` carries no secret and stays safe to paste anywhere. The URL

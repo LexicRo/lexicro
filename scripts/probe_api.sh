@@ -32,11 +32,19 @@
 # unreachable from the wider internet while reachable from Nuremberg. Only a
 # third-party poller fixes that. This is the cheap 90%, not the whole thing.
 #
-# WHAT "HEALTHY" MEANS HERE, and its limit: /health is unauthenticated and
-# touches no database. It proves the process is up, nginx is routing and TLS is
-# valid -- which is most of what actually breaks -- but it would return 200
-# throughout a database failure. Deepening it is tracked as a decision in
-# lexicro-docs OQ-022; do not read more into a green check than this.
+# WHAT "HEALTHY" MEANS HERE, and its limit. /health is unauthenticated. Since
+# 0.6.2 it also makes a bounded SELECT 1 and returns 503 when that fails
+# (ADR-0028, closing OQ-022), so the -f below now catches a database outage as
+# well as a dead process, a broken nginx or an expired certificate. That is why
+# this script needed no change when the endpoint deepened: the status code was
+# always the signal.
+#
+# What it still does NOT prove: that the API can serve a KEYED request.
+# Authentication and the daily quota read api_keys through the rate limiter,
+# and nothing here exercises that path -- deliberately, since probing it would
+# cost quota, put a working key on this host, and pollute request_log with
+# synthetic traffic. Read a green check as "serving, and the database answers",
+# not as "everything works".
 
 set -euo pipefail
 
