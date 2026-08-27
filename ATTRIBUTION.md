@@ -126,14 +126,23 @@ verbecc's output into its own response schema and synthesises the `condițional`
 mood that verbecc declares but does not populate. LexicRo also applies three
 targeted transformations to individual forms: it normalises legacy cedilla
 characters to Romanian's comma-below diacritics; it serves the `infinitiv` mood
-from verbecc's own `verb.infinitive` field rather than a corrupted template
-output, for the small set of verbs (the `face` family) where that template is
-corrupted; and it composes the negative imperative's second-person-singular form
-as `nu` + infinitive for every verb that has such a form, applying the invariant
-paradigm rather than trusting corrupted per-verb entries; this is skipped only
-where verbecc records the form non-existent. Every other form is verbecc's own, unmodified.
+from verbecc's own `verb.infinitive` field — the looked-up lemma — rather than
+from the mood's generated output; and it composes the negative imperative's
+second-person-singular form as `nu` + infinitive for every verb that has such a
+form, applying the invariant paradigm, skipping only those verbs where verbecc
+records the form non-existent. Every other form is verbecc's own, unmodified.
 
-- **Resource:** [verbecc](https://github.com/bretttolbert/verbecc) 2.0.2
+The latter two transformations were introduced to route around corrupted
+templates in verbecc's Romanian data — the `face` family's `infinitiv` and
+negative imperative rendered as `fudrir;odrir`, and similar damage to `a avea`
+and `a vrea`. Those templates were corrected upstream in 2.0.3, so both
+transformations now agree with verbecc's own values rather than replacing them.
+Both are retained, because each rests on a claim that does not depend on the
+defect: `verb.infinitive` is the datum verbecc looked up rather than one it
+generated, and the negative imperative 2sg is invariantly `nu` + infinitive in
+Romanian. Neither substitutes a linguistic judgement for verbecc's.
+
+- **Resource:** [verbecc](https://github.com/bretttolbert/verbecc) 2.0.3
 - **Author:** Brett Tolbert
 - **Licence:** [LGPL-3.0](https://www.gnu.org/licenses/lgpl-3.0.html)
 

@@ -26,7 +26,7 @@ excerpt showing the shape:
     {
       "scope": "all",
       "code": "upstream_unverified",
-      "message": "Forms come from verbecc 2.0.2 and are not exhaustively verified. ..."
+      "message": "Forms come from verbecc 2.0.3 and are not exhaustively verified. ..."
     },
     {
       "scope": "imperativ",
@@ -81,7 +81,7 @@ Each entry in a tense's array has:
 
 | field | type | notes |
 |---|---|---|
-| `form` | string | The inflected form, without its pronoun. The literal string `"-"` means the form does not exist for that person — verbecc's own sentinel, passed through rather than hidden. Impersonal verbs are the usual reason: *a ninge* ("to snow") has no imperative, so its `imperativ` entries read `"-"`. |
+| `form` | string | The inflected form, without its pronoun. The literal string `"-"` means the form does not exist for that person — verbecc's own sentinel, passed through rather than hidden. Impersonal verbs are the usual reason: *a ninge* ("to snow") has no imperative, so its `imperativ` entries read `"-"`. In the **synthesised `condițional`** there is no verbecc value to pass through, so `"-"` is **mirrored from the same person's `indicativ.prezent`**: *a ninge* has a third-person singular and nothing else, so only that person carries a conditional. Mirroring is per person, not per verb — *a ninge* has a 3sg but no 3pl. |
 | `pronoun` | string \| null | The pronoun this form takes (`eu`, `tu`, `el`, `ea`, `noi`, `voi`, `ei`, `ele`), or `null` for moods that take none — `infinitiv`, `gerunziu`, `participiu`. Present and `null`, not omitted, so you can rely on the key existing. |
 | `feats` | object | [Universal Features](https://universaldependencies.org/u/feat/), the same vocabulary `/analyze` uses: `Person` (`"1"`\|`"2"`\|`"3"`), `Number` (`"Sing"`\|`"Plur"`), and `Gender` (`"Masc"`\|`"Fem"`) on third person only. A feature that doesn't apply is absent from the object, not present with a null value. |
 | `source` | `"verbecc"` \| `"derived"` | Which system produced this specific form. See [below](#two-kinds-of-provenance). |
@@ -170,19 +170,23 @@ a plausible Romanian verb at all) returns 404; see [Errors](#errors).
 
 ## Known limitations
 
-Forms come from verbecc and are not exhaustively verified. This applies
-across the whole response, not just one mood: the indicative present of
-*a minți* returns `eu mit`, where correct Romanian is `eu mint`.
+Forms come from verbecc and are not exhaustively verified, and this applies
+across the whole response rather than to one mood. Two defects outside the
+imperative — the indicative present of *a minți*, which returned `eu mit`
+for `eu mint`, and the infinitive of *a face*, which returned a corrupted
+Spanish string — were reported upstream and corrected in verbecc 2.0.3.
+Both were found by spot check rather than by an audit, and the data has not
+been audited as a whole, so treat the absence of a current example as
+telling you nothing.
 
-The imperative has its own, narrower set of known issues on top of that. A
-small set of verbs has residual errors in the library's data — some subtly
-wrong (for example, *merge* returns `merge` as its own 2sg imperative, where
-correct Romanian is `mergi`), and a few outright non-words: *a avea* returns
-`aai` (2sg) and `aeți` (2pl), and *a vrea* returns `ino` (2sg) and `eniți`
-(2pl). Separately, for some verbs the correct imperative form depends on
-whether the verb is used transitively — `treci!` versus `trece-mă!` — and a
-bare verb name doesn't tell you which sense was meant, so the returned form
-may not be the one your context needs.
+The imperative has its own, narrower set of known issues on top of that.
+Three verbs — *a merge*, *a trece* and *a tăcea* — are served their third
+person singular where a second person imperative belongs, so *merge*
+returns `merge` where correct Romanian is `mergi`. Separately, for some
+verbs the correct imperative form depends on whether the verb is used
+transitively — `treci!` versus `trece-mă!` — and a bare verb name doesn't
+tell you which sense was meant, so the returned form may not be the one your
+context needs.
 
 These are reported upstream to the library maintainers. LexicRo relays the
 forms verbecc produces rather than substituting its own corrections, so
