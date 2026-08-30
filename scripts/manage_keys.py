@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Issue, list and revoke API keys.
+"""Issue, list, revoke and re-limit API keys.
 
 Run it inside the api container so it picks up DATABASE_URL:
 
@@ -8,6 +8,8 @@ Run it inside the api container so it picks up DATABASE_URL:
 
     docker-compose exec api python scripts/manage_keys.py list
     docker-compose exec api python scripts/manage_keys.py revoke --prefix lxr_kJ8mN2pQ
+    docker-compose exec api python scripts/manage_keys.py set-limit \
+        --prefix lxr_kJ8mN2pQ --limit 5000
 
 Manual issuance is deliberate for now. It is a real signup path, it takes an
 hour rather than a week, and it puts you in direct contact with the first
@@ -119,7 +121,42 @@ async def revoke(args) -> None:
           if n else f"no active key with prefix {args.prefix}")
 
 
-def main() -> None:
+def _validate_limit(value: int) -> int:
+    """A zero or negative limit bricks a key without recording that anyone
+    meant to. Revoking is a separate, auditable operation -- `revoke` sets
+    revoked_at; this does not. Refuse rather than quietly disable."""
+    if value < 1:
+        raise SystemExit(
+            f"--limit must be 1 or greater, got {value}. "
+            "To disable a key, use `revoke` -- it records revoked_at."
+        )
+    return value
+
+
+async def set_limit(args) -> None:
+    limit = _validate_limit(args.limit)
+    conn = await asyncpg.connect(dsn())
+    try:
+        # Only active keys. Raising a revoked key's limit is almost certainly a
+        # mistyped prefix, and silently "succeeding" on one would hide it.
+        row = await conn.fetchrow(
+            """
+            UPDATE api_keys
+               SET daily_limit = $2
+             WHERE key_prefix = $1 AND revoked_at IS NULL
+         RETURNING key_prefix, email, daily_limit
+            """,
+            args.prefix, limit,
+        )
+    finally:
+        await conn.close()
+
+    if row is None:
+        raise SystemExit(f"no active key with prefix {args.prefix}")
+    print(f"{row['key_prefix']}  {row['email'] or ''}  daily_limit -> {row['daily_limit']}")
+
+
+def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description=__doc__)
     sub = ap.add_subparsers(dest="cmd", required=True)
 
@@ -137,7 +174,16 @@ def main() -> None:
     p.add_argument("--prefix", required=True)
     p.set_defaults(fn=revoke)
 
-    args = ap.parse_args()
+    p = sub.add_parser("set-limit", help="change an existing key's daily limit")
+    p.add_argument("--prefix", required=True)
+    p.add_argument("--limit", type=int, required=True)
+    p.set_defaults(fn=set_limit)
+
+    return ap
+
+
+def main() -> None:
+    args = build_parser().parse_args()
     asyncio.run(args.fn(args))
 
 
