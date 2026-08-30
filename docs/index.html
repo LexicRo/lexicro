@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LexicRo — Romanian Language Intelligence Infrastructure</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0F1117;
+  --surface:#181C27;
+  --border:#252A38;
+  --text:#E2E4EC;
+  --muted:#7B82A0;
+  --hint:#454C66;
+  --accent:#4F8EF7;
+  --accent-dim:#1E2E4A;
+  --green:#3DD68C;
+  --green-dim:#0F2820;
+  --amber:#F0A500;
+  --amber-dim:#2A1F00;
+  --mono:'IBM Plex Mono',monospace;
+  --sans:'IBM Plex Sans',sans-serif;
+}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--sans);
+  font-size:15px;
+  line-height:1.7;
+  padding:40px 16px 80px;
+}
+.post{max-width:680px;margin:0 auto}
+
+/* Title block */
+.title-block{margin-bottom:32px}
+.eyebrow{
+  font-family:var(--mono);font-size:11px;font-weight:600;
+  letter-spacing:.1em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:10px;
+}
+h1{
+  font-size:28px;font-weight:600;line-height:1.25;
+  color:#fff;margin-bottom:12px;
+}
+.tagline{
+  font-size:16px;color:var(--muted);line-height:1.6;
+}
+
+/* Divider */
+.divider{
+  border:none;border-top:1px solid var(--border);
+  margin:28px 0;
+}
+
+/* Body text */
+p{margin-bottom:18px;color:var(--text)}
+p:last-child{margin-bottom:0}
+strong{color:#fff;font-weight:600}
+em{font-style:italic;color:var(--muted)}
+
+/* Code block */
+.code-block{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-left:3px solid var(--accent);
+  border-radius:6px;
+  padding:16px 18px;
+  font-family:var(--mono);
+  font-size:13px;
+  color:var(--accent);
+  margin:20px 0;
+  overflow-x:auto;
+  line-height:1.6;
+}
+.code-block .comment{color:var(--hint)}
+.code-block .key{color:#A78BFA}
+.code-block .str{color:var(--green)}
+.code-block .num{color:var(--amber)}
+
+/* Callout */
+.callout{
+  background:var(--accent-dim);
+  border:1px solid var(--accent);
+  border-radius:8px;
+  padding:16px 18px;
+  margin:24px 0;
+  font-size:14px;
+  color:var(--text);
+  line-height:1.65;
+}
+.callout .callout-label{
+  font-family:var(--mono);font-size:11px;font-weight:600;
+  color:var(--accent);letter-spacing:.08em;text-transform:uppercase;
+  margin-bottom:8px;
+}
+.callout.amber{
+  background:var(--amber-dim);border-color:var(--amber);
+}
+.callout.amber .callout-label{color:var(--amber)}
+.callout.green{
+  background:var(--green-dim);border-color:var(--green);
+}
+.callout.green .callout-label{color:var(--green)}
+
+/* Live status block */
+.live-block{
+  background:var(--green-dim);
+  border:1px solid var(--green);
+  border-radius:8px;
+  padding:18px 20px;
+  margin:24px 0;
+  display:flex;
+  align-items:flex-start;
+  gap:14px;
+}
+.live-dot{
+  width:10px;height:10px;border-radius:50%;
+  background:var(--green);flex-shrink:0;margin-top:5px;
+  box-shadow:0 0 6px var(--green);
+}
+.live-content{}
+.live-label{
+  font-family:var(--mono);font-size:11px;font-weight:600;
+  color:var(--green);letter-spacing:.08em;text-transform:uppercase;
+  margin-bottom:6px;
+}
+.live-text{font-size:14px;color:var(--text);line-height:1.65;margin-bottom:10px}
+.live-links{display:flex;gap:8px;flex-wrap:wrap}
+.live-link{
+  font-family:var(--mono);font-size:11px;font-weight:600;
+  color:var(--green);text-decoration:none;
+  border:1px solid var(--green);border-radius:4px;
+  padding:3px 10px;transition:opacity .15s;
+}
+.live-link:hover{opacity:.7}
+.live-link-demo{
+    color:var(--bg);
+    background:var(--green);
+    border-color:var(--green);
+}
+/* What we need list */
+.need-list{
+  display:flex;flex-direction:column;gap:10px;
+  margin:20px 0;
+}
+.need-item{
+  display:flex;gap:12px;align-items:flex-start;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:7px;padding:12px 14px;
+  font-size:14px;
+}
+.need-icon{
+  font-family:var(--mono);font-size:12px;font-weight:600;
+  color:var(--accent);background:var(--accent-dim);
+  border-radius:4px;padding:2px 7px;flex-shrink:0;
+  margin-top:1px;
+}
+.need-text strong{color:#fff;display:block;margin-bottom:2px;font-size:14px}
+.need-text span{color:var(--muted);font-size:13px}
+
+/* CTA block */
+.cta-block{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:24px;
+  margin-top:32px;
+  text-align:center;
+}
+.cta-block h3{
+  font-size:17px;font-weight:600;color:#fff;margin-bottom:8px;
+}
+.cta-block p{
+  font-size:14px;color:var(--muted);margin-bottom:20px;
+}
+.cta-links{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.cta-link{
+  display:inline-block;padding:8px 18px;border-radius:6px;
+  font-family:var(--mono);font-size:12px;font-weight:600;
+  text-decoration:none;letter-spacing:.03em;
+  transition:opacity .15s;
+}
+.cta-link:hover{opacity:.8}
+.cta-primary{background:var(--accent);color:#fff}
+.cta-secondary{
+  background:transparent;color:var(--accent);
+  border:1px solid var(--accent);
+}
+
+/* Footer */
+.post-footer{
+  margin-top:32px;
+  font-family:var(--mono);font-size:11px;color:var(--hint);
+  display:flex;gap:16px;flex-wrap:wrap;
+}
+.post-footer a{color:var(--muted);text-decoration:none}
+.post-footer a:hover{color:var(--accent)}
+
+/* Section heading */
+h2{
+  font-size:17px;font-weight:600;color:#fff;
+  margin:28px 0 12px;
+}
+
+/* Tag chips */
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:24px}
+.tag{
+  font-family:var(--mono);font-size:10px;font-weight:600;
+  letter-spacing:.06em;text-transform:uppercase;
+  padding:3px 8px;border-radius:4px;
+  background:var(--surface);border:1px solid var(--border);
+  color:var(--muted);
+}
+
+@media(max-width:480px){
+  h1{font-size:22px}
+  .cta-links{flex-direction:column;align-items:stretch}
+  .cta-link{text-align:center}
+}
+</style>
+</head>
+<body>
+<div class="post">
+
+  <div class="title-block">
+    <div class="eyebrow">Status: shipping</div>
+    <h1>Building the Romanian NLP API that should already exist</h1>
+    <p class="tagline">LexicRo — open-core Romanian language intelligence infrastructure. Looking for early feedback, collaborators, and anchor users.</p>
+  </div>
+
+  <div class="tags">
+    <span class="tag">NLP</span>
+    <span class="tag">Romanian</span>
+    <span class="tag">API</span>
+    <span class="tag">Open Source</span>
+    <span class="tag">B1+ tools</span>
+    <span class="tag">EdTech</span>
+  </div>
+
+  <!-- PHASE 1 LIVE STATUS BLOCK -->
+   <div class="live-block">
+    <div class="live-dot"></div>
+    <div class="live-content">
+      <div class="live-label">Phase 2 is live</div>
+      <div class="live-text"><strong>The morphological analyser is shipped.</strong> <code>/analyze</code> returns lemma, part of speech and full morphology for every token in context - 98.14% POS accuracy, 95.50% lemma accuracy (UD Romanian test split, gold tokenisation). Conjugation is live too. Free tier: 1,000 requests/day, no credit card.</div>
+      <div class="live-text">Measured on the UD Romanian RRT test split with gold tokenisation: the standard Romanian benchmark, comparable to published results. End-to-end accuracy on raw text is a different and currently unmeasured quantity.</div>
+      <div class="live-links">
+        <a class="live-link live-link-demo" href="https://demo.lexicro.com" target="_blank" rel="noopener">Try the demo →</a>
+        <a class="live-link" href="https://api.lexicro.com/guide" target="_blank" rel="noopener">Documentation →</a>
+        <a class="live-link" href="https://api.lexicro.com/docs" target="_blank" rel="noopener">API explorer →</a>
+        <a class="live-link" href="https://api.lexicro.com/health" target="_blank" rel="noopener">Status →</a>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <p>If you've ever tried to do anything programmatic with Romanian text — parse a sentence, get the correct inflected form of a noun, check whether a verb conjugation is right — you've probably hit the same wall.</p>
+
+  <p>There's no clean API for it. Verbecc handles conjugation, but there's nothing for morphology or lemmatisation. This is not good enough for production.</p>
+
+  <div class="callout amber">
+    <div class="callout-label">The specific gap</div>
+    Given an arbitrary Romanian sentence, return for each token its lemma, part of speech, case, number, gender, person and tense. This is what spaCy does for English, French and German in a <code>pip install</code>. LexicRo is that as a hosted, versioned HTTP contract for Romanian: callable without shipping a model, stamping the version it answered with, and telling you per token whether the answer came from a lexicon or a prediction.
+  </div>
+
+  <p>Romanian NLP tooling lags well behind English. The academic resources are there — DEXonline (313k+ lemmas), RoLEX (330k morphosyntactic entries), the Universal Dependencies Romanian Treebank — they're just not packaged in a way developers can actually use.</p>
+
+  <p>That's what LexicRo is for.</p>
+
+  <hr class="divider">
+
+  <h2>What we're building</h2>
+
+  <p>A hosted REST API — with an open-source core — covering the endpoints Romanian developers actually need:</p>
+
+  <div class="code-block">
+    <span class="comment"># Morphological analysis</span><br>
+    POST /analyze<br>
+    <span class="comment">→ lemma, POS, case, gender, number, person, tense per token, plus where each answer came from.</span><br>
+    <br>
+    <span class="comment"># Verb conjugation</span><br>
+    GET /conjugate/<span class="str">{verb}</span><br>
+    <span class="comment">→ seven moods, including perfect simplu
+  and viitor I. For a verb the conjugator does not recognise,
+  returns a predicted paradigm and marks it as predicted.</span><br>
+  
+  </div>
+
+  <p>The core is open source (MIT). It is built on openly licensed Romanian language resources — see <a href="https://api.lexicro.com/attribution">attribution</a> — and licensing terms for the model weights are still being worked out. The hosted API is available now either way, with a generous free tier (1,000 req/day, no credit card).</p>
+
+  <hr class="divider">
+
+  <h2>Built on what already exists</h2>
+
+  <p>We're not starting from scratch. The data and models are there — they just need engineering:</p>
+
+  <p><strong>Data:</strong> the MULTEXT-East Romanian word-form lexicon (428k entries, CC BY-SA 4.0), and the UD Romanian RRT treebank (9.5k annotated sentences, CC BY-SA 4.0, developed at RACAI). Full citations on the <a href="https://api.lexicro.com/attribution">attribution page</a>.</p>
+
+  <p><strong>Models:</strong> <code>bert-base-romanian-cased-v1</code> fine-tuned for morphological tagging, paired with lexicon lookup — the model resolves what the dictionary cannot, the dictionary supplies what the model would only guess at. verbecc for conjugation, extended.</p>
+
+  <p><strong>Infrastructure:</strong> FastAPI, Docker, full OpenAPI spec.</p>
+
+  <div class="callout green">
+    <div class="callout-label">Phase 2 — live now</div>
+    The hard part is done. <code>/analyze</code> handles contextual disambiguation, not just
+    dictionary lookup — it knows that <em>sare</em> is the noun <strong>sare</strong> ("salt") in
+    <em>Pune sare în mâncare</em> and the verb <strong>sări</strong> ("to jump") in
+    <em>Pisica sare pe masă</em>. Measured on the UD Romanian RRT test split with gold tokenisation:
+    <strong>98.14%</strong> part-of-speech accuracy, <strong>98.43%</strong> morphological features
+    (F1), <strong>95.50%</strong> lemma accuracy. Full numbers and caveats in the
+    <a href="https://api.lexicro.com/guide" style="color:var(--green)">documentation</a>.
+  </div>
+  
+  <hr class="divider">
+
+  <h2>What we're looking for right now</h2>
+
+  <div class="need-list">
+    <div class="need-item">
+      <div class="need-icon">01</div>
+      <div class="need-text">
+        <strong>Honest feedback on the endpoint design</strong>
+        <span>Does this cover what you actually need? What's missing? What would make you use this over your current approach?</span>
+      </div>
+    </div>
+    <div class="need-item">
+      <div class="need-icon">02</div>
+      <div class="need-text">
+        <strong>Early users willing to test the API</strong>
+        <span>If you're building something with Romanian text — edtech, content tools, document processing, language learning — we'd like to talk. Early users get priority feature input.</span>
+      </div>
+    </div>
+    <div class="need-item">
+      <div class="need-icon">03</div>
+      <div class="need-text">
+        <strong>Academic and institutional connections</strong>
+        <span>If you work on Romanian language resources at a university or research institution, I'd like to hear from you — on tagsets, evaluation, or where an open Romanian NLP API would actually be useful in your work.</span>
+      </div>
+    </div>
+    <div class="need-item">
+      <div class="need-icon">04</div>
+      <div class="need-text">
+        <strong>Anyone who's built adjacent to this problem</strong>
+        <span>If you've already built a Romanian spell checker, worked with the UD treebank, or tried to fine-tune anything on Romanian — we'd genuinely like to hear what you learned.</span>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="callout">
+    <div class="callout-label">On the business model</div>
+    Open core, hosted API, freemium tiers. The free tier is real and permanent — not a trial. The commercial tiers will fund continued development. We're pursuing language-technology funding partly because Romanian deserves proper NLP infrastructure regardless of whether the commercial model scales immediately.
+  </div>
+
+  <div class="cta-block">
+    <h3>Three ways in.</h3>
+    <p>Everything described here is live. Read the docs, or get in touch if you want to talk about your use case.</p>
+    <div class="cta-links">
+      <a class="cta-link cta-primary" href="https://api.lexicro.com/guide" target="_blank" rel="noopener">Read the docs</a>
+      <a class="cta-link cta-secondary" href="https://tally.so/r/GxBBbz" target="_blank" rel="noopener">Get API access</a>
+      <a class="cta-link cta-secondary" href="mailto:contact@lexicro.com">Get in touch</a>
+    </div>
+  </div>
+
+  <div class="post-footer">
+    <span>LexicRo — updated August 2026</span>
+    <a href="https://lexicro.com">lexicro.com</a>
+    <a href="https://github.com/LexicRo">github.com/LexicRo</a>
+    <a href="mailto:contact@lexicro.com">contact@lexicro.com</a>
+  </div>
+
+</div>
+</body>
+</html>
