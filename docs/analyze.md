@@ -98,7 +98,7 @@ they arrive mangled, so will the analysis.
 
 | field | notes |
 |---|---|
-| `model_version` | Identifies the exact weights, lexicon and tagset used. Same input and `model_version` always yield identical values for every field — lemma, tags, features and all — though the set of fields present can grow over time. |
+| `model_version` | Identifies the exact weights, lexicon and tagset used. The three are versioned together as one unit, so pinning this pins all three, and any change to them is meant to bump it — including a change that arrives incidentally through a dependency bump. **That is a contract we hold ourselves to, not something the service currently verifies:** nothing yet fails a release when the artefacts change and the string does not. If you depend on reproducibility, pin `model_version` and check it on every response. The set of fields present can also grow over time. |
 | `truncated` | Whether any sentence exceeded the model's internal length limit. Tokens past the cut are still returned, with `upos: "X"` and no `source`. |
 | `sentences[]` | One entry per detected sentence. |
 | `sentences[].tokens[]` | One entry per token, in order. |
