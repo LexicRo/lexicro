@@ -20,6 +20,8 @@ Documentation that requires a key to read is documentation nobody reads.
 
 from __future__ import annotations
 
+import html as html_lib
+import os
 from pathlib import Path
 
 import markdown
@@ -31,10 +33,37 @@ router = APIRouter(tags=["Documentation"], include_in_schema=False)
 # Repo root: app/routers/docs.py -> app/routers -> app -> /app
 ROOT = Path(__file__).resolve().parent.parent.parent
 
+# Same env var and same default as the signup flow in routers/keys.py, so a
+# deployment that moves the API moves its canonical URLs with it.
+PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "https://api.lexicro.com")
+
+# (source file, <title>, description).
+#
+# The description is not decoration. These pages are what the project asks
+# people to check its claims against, so they get pasted into chat apps, forums
+# and social posts, all of which render a preview card from the head. Until
+# 2026-09-01 these pages carried `charset` and `viewport` and nothing else, so
+# scrapers invented a description from page text -- and the first text here is
+# the inlined <style> block. That produced a visibly wrong card the first time
+# `/guide` was shared. Keep each one short, true, and about *this* page.
 PAGES = {
-    "guide": (ROOT / "docs" / "analyze.md", "LexicRo — /analyze guide"),
-    "guide/conjugate": (ROOT / "docs" / "conjugate.md", "LexicRo — /conjugate guide"),
-    "attribution": (ROOT / "ATTRIBUTION.md", "LexicRo — Attribution"),
+    "guide": (
+        ROOT / "docs" / "analyze.md",
+        "LexicRo — /analyze guide",
+        "How /analyze works: for every token, its lemma, part of speech and "
+        "morphological features — and which component produced each one.",
+    ),
+    "guide/conjugate": (
+        ROOT / "docs" / "conjugate.md",
+        "LexicRo — /conjugate guide",
+        "How /conjugate works: Romanian conjugation tables across seven moods, "
+        "with the source of every form.",
+    ),
+    "attribution": (
+        ROOT / "ATTRIBUTION.md",
+        "LexicRo — Attribution",
+        "Licences and credits for the data, models and libraries behind LexicRo.",
+    ),
 }
 
 # Minimal, readable, no external requests. A docs page that pulls in a CDN
@@ -88,7 +117,30 @@ NAV = (
 )
 
 
-def _render(path: Path, title: str) -> str:
+def _meta(title: str, description: str, route: str) -> str:
+    """The head metadata a link preview is built from.
+
+    Escaped with quote=True because these values land inside double-quoted
+    attributes: a raw `"` in the copy would close the attribute early and the
+    tag would go wrong silently -- the page still renders, only the card breaks,
+    which is precisely the failure that is hard to notice.
+
+    No og:image: there is no card image to point at yet, and a tag pointing at
+    a missing one is worse than its absence. Scrapers fall back to a text card.
+    """
+    esc = lambda value: html_lib.escape(value, quote=True)  # noqa: E731
+    return (
+        f'<meta name="description" content="{esc(description)}">'
+        f'<meta property="og:title" content="{esc(title)}">'
+        f'<meta property="og:description" content="{esc(description)}">'
+        f'<meta property="og:url" content="{esc(PUBLIC_BASE_URL + route)}">'
+        f'<meta property="og:type" content="website">'
+        f'<meta property="og:site_name" content="LexicRo">'
+        f'<meta name="twitter:card" content="summary">'
+    )
+
+
+def _render(path: Path, title: str, description: str, route: str) -> str:
     if not path.exists():
         raise HTTPException(status_code=404, detail="Documentation not found.")
     html = markdown.markdown(
@@ -98,24 +150,29 @@ def _render(path: Path, title: str) -> str:
     return (
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-        f"<title>{title}</title><style>{STYLE}</style></head>"
+        f"<title>{html_lib.escape(title)}</title>"
+        f"{_meta(title, description, route)}"
+        f"<style>{STYLE}</style></head>"
         f"<body>{NAV}{html}</body></html>"
     )
 
 
+def _page(key: str) -> str:
+    """Render the page registered under `key`, whose route is `/{key}`."""
+    path, title, description = PAGES[key]
+    return _render(path, title, description, f"/{key}")
+
+
 @router.get("/guide", response_class=HTMLResponse)
 def guide() -> str:
-    path, title = PAGES["guide"]
-    return _render(path, title)
+    return _page("guide")
 
 
 @router.get("/guide/conjugate", response_class=HTMLResponse)
 def guide_conjugate() -> str:
-    path, title = PAGES["guide/conjugate"]
-    return _render(path, title)
+    return _page("guide/conjugate")
 
 
 @router.get("/attribution", response_class=HTMLResponse)
 def attribution() -> str:
-    path, title = PAGES["attribution"]
-    return _render(path, title)
+    return _page("attribution")
